@@ -4,8 +4,8 @@ node_modules/
 # Production
 dist/
 lib/
-*.js
-*.js.map
+
+.map
 *.d.ts
 
 # Testing

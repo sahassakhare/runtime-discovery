@@ -1,0 +1,52 @@
+<div class="card full-width">
+    <div class="header-row" style="display: flex; justify-content: space-between; margin-bottom: 2rem;">
+        <h2>Resolution Strategy</h2>
+        <span class="badge">{{ remoteName }}</span>
+    </div>
+
+    <!-- Layout: Host -> Strategy -> Versions -->
+    <div class="graph-container" *ngIf="graphData() as graph">
+
+        <!-- Level 1: Shell -->
+        <div class="level">
+            <div class="node root">
+                <span class="material-icons-outlined"
+                    style="font-size: 1.2rem; vertical-align: bottom; margin-right: 5px;">web</span>
+                Shell (Host)
+            </div>
+        </div>
+
+        <div class="connector-vertical"></div>
+
+        <!-- Level 2: Strategy -->
+        <div class="level">
+            <div class="node strategy">
+                <span class="material-icons-outlined"
+                    style="font-size: 1.2rem; vertical-align: bottom; margin-right: 5px;">track_changes</span>
+                Resolution: Canary
+            </div>
+        </div>
+
+        <div class="strategy-connector"></div>
+
+        <!-- Level 3: Versions (Branching) -->
+        <div class="branch-container">
+            <div class="branch-bar"></div> <!-- Horizontal Line -->
+
+            <div class="level versions">
+                <!-- Dynamic Nodes -->
+                <div style="position: relative;" *ngFor="let node of versionNodes">
+                    <div class="leaf-connector"></div>
+                    <div class="node" [className]="'node ' + node.type">
+                        <div>{{ node.label }}</div>
+                        <div *ngIf="node['traffic']" style="font-size: 0.75rem; margin-top: 4px;"
+                            [style.color]="node.type.includes('active') ? 'var(--success)' : 'var(--text-tertiary)'">
+                            {{ node['traffic'] }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

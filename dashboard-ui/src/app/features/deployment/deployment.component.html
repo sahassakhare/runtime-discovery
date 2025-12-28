@@ -1,0 +1,37 @@
+<div class="card full-width">
+    <div class="header-row">
+        <h2>Microfrontend Deployments</h2>
+        <button class="refresh-btn">Refresh</button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Feature Group</th>
+                    <th>Active Version</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let mfe of deployments()">
+                    <td class="name-cell">{{ mfe.name }}</td>
+                    <td><span class="badge">{{ mfe.type }}</span></td>
+                    <td>{{ mfe.group }}</td>
+                    <td><span class="version-cell">{{ mfe.activeVersion }}</span></td>
+                    <td>
+                        <span class="badge" [ngClass]="{
+                            'success': mfe.status === 'HEALTHY',
+                            'warning': mfe.status === 'DEGRADED',
+                            'error': mfe.status === 'DOWN'
+                        }">
+                            {{ mfe.status }}
+                        </span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

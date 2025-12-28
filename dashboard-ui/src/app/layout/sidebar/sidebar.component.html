@@ -1,0 +1,21 @@
+<aside class="sidebar glass-panel">
+    <div class="logo-area">
+        <div class="logo-icon">M</div>
+        <span class="brand-name">Maverick</span>
+    </div>
+
+    <nav class="nav-menu">
+        <a *ngFor="let item of navItems" [routerLink]="item.route" routerLinkActive="active" class="nav-item">
+            <span class="material-icons-outlined icon">{{item.icon}}</span>
+            <span class="label">{{item.label}}</span>
+        </a>
+    </nav>
+
+    <div class="user-profile">
+        <div class="avatar">A</div>
+        <div class="user-info">
+            <span class="name">Admin User</span>
+            <span class="role">Platform Owner</span>
+        </div>
+    </div>
+</aside>

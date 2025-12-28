@@ -1,0 +1,109 @@
+.sidebar {
+    width: var(--sidebar-width);
+    height: calc(100vh - 2rem);
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border-subtle);
+    /* Slightly more opaque */
+}
+
+/* Logo */
+.logo-area {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 3rem;
+    padding-left: 0.5rem;
+}
+
+.logo-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    color: white;
+}
+
+.brand-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+}
+
+/* Nav */
+.nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.nav-item:hover {
+    background: var(--bg-dark);
+    color: var(--text-primary);
+}
+
+.nav-item.active {
+    background: rgba(37, 99, 235, 0.1);
+    /* Primary tint */
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.icon {
+    font-size: 1.25rem;
+}
+
+/* User profile */
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    display: grid;
+    place-items: center;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.name {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.role {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+}

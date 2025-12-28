@@ -1,0 +1,62 @@
+<div class="content-grid">
+    <!-- Stats Row -->
+    <section class="card stats-card animate-entry" style="animation-delay: 0.1s">
+        <ng-container *ngIf="stats() as s; else loadingStats">
+            <div class="stat-item">
+                <h3>Total MFEs</h3>
+                <p class="stat-value">{{ s.totalMfes }}</p>
+                <span class="trend up">↑ 2</span>
+            </div>
+            <div class="stat-item">
+                <h3>Active Versions</h3>
+                <p class="stat-value">{{ s.activeVersions }}</p>
+                <span class="trend neutral">-</span>
+            </div>
+            <div class="stat-item">
+                <h3>Deployments (24h)</h3>
+                <p class="stat-value">{{ s.deploymentsToday }}</p>
+                <span class="trend up">↑ 12%</span>
+            </div>
+            <div class="stat-item">
+                <h3>Avg Lighthouse</h3>
+                <p class="stat-value">{{ s.avgLighthouseScore }}</p>
+                <span class="trend up">↑ 0.5</span>
+            </div>
+        </ng-container>
+        <ng-template #loadingStats>
+            <div class="stat-item" *ngFor="let i of [1,2,3,4]">
+                <h3><app-skeleton width="80px"></app-skeleton></h3>
+                <p><app-skeleton width="40px" height="2rem"></app-skeleton></p>
+            </div>
+        </ng-template>
+    </section>
+
+    <!-- Runtime Health -->
+    <section class="card full-width animate-entry" style="animation-delay: 0.2s">
+        <app-runtime></app-runtime>
+    </section>
+
+    <!-- Deployment Table -->
+    <section class="card full-width animate-entry" style="animation-delay: 0.3s">
+        <app-deployment></app-deployment>
+    </section>
+
+    <!-- Resolution Graph & Governance -->
+    <section class="card full-width animate-entry" style="animation-delay: 0.4s">
+        <app-resolution-graph remoteName="remote-profile"></app-resolution-graph>
+    </section>
+
+    <section class="card animate-entry" style="animation-delay: 0.5s">
+        <h2>Governance Compliance</h2>
+        <div class="list-container">
+            <div class="list-item" *ngFor="let g of governance()">
+                <span class="item-name">{{ g.check }}</span>
+                <span class="badge" [ngClass]="{
+          'success': g.status === 'PASS', 
+          'warning': g.status === 'WARN', 
+          'error': g.status === 'FAIL'
+        }">{{ g.status }}</span>
+            </div>
+        </div>
+    </section>
+</div>

@@ -1,0 +1,19 @@
+<div style="font-family: sans-serif; max-width: 800px; margin: 0 auto;">
+  <header style="background: #2c3e50; color: white; padding: 1rem; border-radius: 8px;">
+    <h1>Maverick MFE Shell</h1>
+    <nav>
+      <a routerLink="/profile" style="color: #fff; margin-right: 15px;">User Profile</a>
+    </nav>
+  </header>
+
+  <main style="padding: 20px;">
+    <div style="background: #ecf0f1; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+      <h3>Governance Status</h3>
+      <p>Using Discovery Service: <strong>http://localhost:8081</strong></p>
+      <p>Active Flags:</p>
+      <pre>{{ flags | json }}</pre>
+    </div>
+
+    <router-outlet></router-outlet>
+  </main>
+</div>
