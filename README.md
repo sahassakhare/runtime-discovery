@@ -1,16 +1,39 @@
 # @maverick/runtime-discovery
 
-Maverick Runtime Discovery Client
+**Enterprise-Grade Microfrontend Discovery Client**
 
-## Features
+A robust, framework-agnostic client for resolving, loading, and hot-swapping microfrontends at runtime. Designed for scale, this library supports multi-tenancy, environment isolation, and real-time updates via Server-Sent Events (SSE).
 
-- Dynamic Microfrontend Resolution via Discovery Server
-- Sub-Resource Integrity (SRI) Support
-- Resilient Loading with Fallback Mechanisms
-- **Automatic Runtime Registration**: Applications self-register with the backend upon startup (url, appName, environment).
-- **Runtime Version Presence**: Tracks active versions (primary vs fallback) loaded in the session.
-- **Feature Flag Integration**: Built-in support for server-side feature toggles.
-- Framework Agnostic Loader (optimized for Angular)
+---
+
+## 🚀 Key Features
+
+### 🏢 Enterprise Multi-Tenancy
+*   **Tenant Isolation**: delivering specific versions of microfrontends based on the active `tenantId`.
+*   **Context-Aware Resolution**: Different tenants can see different versions (e.g., "Premium Users" get v2.0, "Standard" get v1.0).
+
+### ⚡ Live Hot Swapping (Fan-Out Architecture)
+*   **Real-Time Updates**: Instantly push updates to connected clients using **Server-Sent Events (SSE)**.
+*   **Granular Swapping**: Uses a "Push-Signal, Pull-Data" model. The server sends a lightweight `CONFIG_CHANGED` signal; the client intelligently diffs Version and Feature Flags to reload *only* the affected MFEs.
+*   **Flicker-Free**: Components remain stable unless a specific update targeting them is detected.
+
+### 🌍 Environment Scoping
+*   **Environment Isolation**: Distinct deployments for `development`, `staging`, and `production`.
+*   **Safe Promotion**: Promote immutable `Version` artifacts across environments without rebuilding.
+
+### 🚩 Feature Flags & Experimentation
+*   **Deep Integration**: Native support for **FF4j** and **OpenFeature**.
+*   **Canary Releases**: Route traffic to new versions based on percentage weights or user context.
+*   **Dark Launches**: Deploy code silently and toggle visibility via feature flags (`profile.new-ui`).
+
+### 🛡️ Resilience & Fallback
+*   **Automatic Failover**: If a primary version (e.g., Canary) fails to load (404/Network Error), the client automatically falls back to a stable version.
+*   **Discovery Caching**: Caches resolution responses to survive temporary Discovery Server outages.
+
+### 🔌 Automatic Runtime Registration
+*   **Self-Discovery**: Applications automatically register themselves with the backend upon startup, building a live topology of the system.
+
+---
 
 ## Installation
 
@@ -18,66 +41,13 @@ Maverick Runtime Discovery Client
 npm install @maverick/runtime-discovery
 ```
 
-## Backend Contract
-
-Your discovery service should return a response adhering to the `ResolveRemoteResponse` interface.
-
-**`POST https://api.example.com/resolve`**
-**Body:** `{ "remoteName": "remote-profile", "environment": "production" }`
-
-**Response:**
-```json
-{
-  "remoteName": "remote-profile",
-  "selected": {
-    "version": "1.1.0-canary",
-    "remoteEntry": "http://localhost:4201/remoteEntry.js",
-    "integrity": "sha384-..."
-  },
-  "fallback": {
-    "version": "1.0.0",
-    "remoteEntry": "http://localhost:4201/remoteEntry.js",
-    "integrity": "sha384-..."
-  },
-  "cacheTtlSeconds": 60,  
-  "resolutionContext": {
-    "flags": {
-      "profile.new-ui": true,
-      "global.dark-mode": true
-    },
-    "variant": {
-      "name": "canary",
-      "type": "canary"
-    }
-  }
-}
-```
-```
-
-## Runtime Registration
-
-The library automatically calls the registration endpoint on startup. This allows the backend to build a live topology of running applications.
-
-**`POST https://api.example.com/registry/instances`**
-**Body:**
-```json
-{
-  "appName": "remote-profile", 
-  "environment": "production",
-  "url": "https://profile.example.com" 
-}
-```
-
 ## Usage
 
-### 1. Configure the Client
+### 1. Configuration (Angular)
 
-#### Option 1: Angular Dependency Injection (Recommended)
+Integrate with Angular's dependency injection system using `provideDiscovery`.
 
-This integrates with Angular's ecosystem, makes testing easier, and supports standard Angular `provide` patterns.
-
-**In `src/app/app.config.ts`:**
-
+**`src/app/app.config.ts`**:
 ```typescript
 import { ApplicationConfig } from '@angular/core';
 import { provideDiscovery } from '@maverick/runtime-discovery';
@@ -86,31 +56,25 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideDiscovery({
       url: 'https://api.example.com',
-      environment: 'production',
-      appName: 'shell-ui'
+      appName: 'shell-ui',
+      environment: 'production', // 'development' | 'staging' | 'production'
+      tenantId: 'acme-corp'      // Optional: Multi-tenant context
     })
   ]
 };
 ```
 
-#### Option 2: Singleton (Simplest)
+### 2. Live Discovery Service (Hot Swapping)
 
-Useful for quick prototypes or when DI is not available.
+The `LiveDiscoveryService` expects an SSE endpoint at `/api/stream`. It automatically connects and manages the lifecycle of all microfrontends on the page.
 
-**`src/app/discovery.config.ts`:**
-```typescript
-import { HttpRuntimeDiscovery, RemoteClient } from '@maverick/runtime-discovery';
-import { environment } from '../environments/environment';
+**No additional code required**—simply using the `MfeHostComponent` or `RemoteClient` registers the remote for updates.
 
-const discovery = new HttpRuntimeDiscovery('https://api.example.com', environment.name, 'my-app');
-export const remoteClient = new RemoteClient(discovery);
-```
+### 3. Loading Microfrontends
 
-### 2. Configuring Routes
+#### Option A: Routing (Lazy Loading)
 
-#### Using Injection (Recommended)
-
-If using DI config, use `inject` within a functional `loadChildren`:
+Load a full microfrontend module when a route is activated.
 
 ```typescript
 import { inject } from '@angular/core';
@@ -120,194 +84,89 @@ import { REMOTE_CLIENT } from '@maverick/runtime-discovery';
 export const routes: Routes = [
   {
     path: 'profile',
+    // Dynamically resolves metadata, then loads the bundle
     loadChildren: () => inject(REMOTE_CLIENT).loadRemoteModule('remote-profile', './ProfileModule')
   }
 ];
 ```
 
-#### Using the Helper (Singleton)
+#### Option B: Component (Dynamic Widget)
 
-If using the singleton config:
+Embed a microfrontend anywhere in your template using the Host Component.
 
-```typescript
-import { remoteRoute } from '@maverick/runtime-discovery';
-import { remoteClient } from './discovery.config';
-
-export const routes: Routes = [
-  // Dynamically loads 'remote-profile' from the URL returned by the discovery service
-  remoteRoute(remoteClient, 'remote-profile', './ProfileModule')
-];
+```html
+<!-- src/app/dashboard.component.html -->
+<mfe-host 
+    remoteName="remote-profile" 
+    exposedModule="./UserProfile" 
+    [inputs]="{ userId: 123 }">
+</mfe-host>
 ```
 
-### 3. Manually Loading a Component
+---
 
-Sometimes you need to load a specific component dynamically (e.g., a widget) rather than a full route.
+## Backend Contract
 
-```typescript
-import { Component, OnInit, inject } from '@angular/core';
-import { REMOTE_CLIENT } from '@maverick/runtime-discovery';
+The discovery service must expose the following endpoints:
 
-@Component({ ... })
-export class DashboardComponent implements OnInit {
-  private remoteClient = inject(REMOTE_CLIENT);
+### 1. Resolution Endpoint
+**`POST /api/resolve`**
 
-  async ngOnInit() {
-    try {
-      const { WidgetComponent } = await this.remoteClient.loadRemoteModule<any>(
-          'analytics-remote', 
-          './WidgetComponent'
-      );
-      // Handle WidgetComponent...
-    } catch (err) {
-      console.error('Failed to load widget', err);
-    }
-  }
-}
-```
-
-
-## Feature Flags & Experimentation
-
-The library integrates with a server-side feature service (Spring Boot + FF4J) to support feature toggles and canary releases.
-
-### Usage in Components
-
-Use the `FeatureClient` to fetch and check flags:
-
-```typescript
-import { FeatureClient } from '@maverick/runtime-discovery';
-
-const featureClient = new FeatureClient('https://api.example.com');
-
-// 1. Fetch flags for the current session context
-await featureClient.fetchFlags({ userId: '123', role: 'beta-tester' });
-
-// 2. Checking flags synchronously
-if (featureClient.getFlag('profile.new-ui')) {
-  // Show new UI
-}
-```
-
-### Context-Aware Routing (Canary/Blue-Green)
-
-You can pass a context object when resolving modules. This allows the discovery server to route users to specific variants (e.g., canary version).
-
-```typescript
-// Pass context during module load
-await remoteClient.loadRemoteModule('remote-profile', './Module', 1, {
-  userId: '123',
-  region: 'us-east'
-});
-```
-
-To enable this, your backend discovery service must support context evaluation.
-
-### Integrated Flag Resolution
-
-The `resolveRemote` response can now include feature flags directly, which can be integrated into your application state management (e.g., NgRx, Signals, or global window access) by the `RemoteClient`.
-
-**Example Response**:
+**Request:**
 ```json
 {
   "remoteName": "remote-profile",
-  "selected": { ... },
+  "environment": "production",
+  "tenantId": "acme-corp",
+  "context": { "userRole": "beta" }
+}
+```
+
+**Response:**
+```json
+{
+  "remoteName": "remote-profile",
+  "selected": {
+    "version": "1.2.0-rc1",
+    "remoteEntry": "https://cdn.example.com/mfe/v1.2.0/remoteEntry.js",
+    "integrity": "sha384-..."
+  },
+  "fallback": {
+    "version": "1.0.0",
+    "remoteEntry": "https://cdn.example.com/mfe/v1.0.0/remoteEntry.js"
+  },
   "resolutionContext": {
     "flags": {
       "profile.new-ui": true,
-      "profile.canary": { "strategy": "ponderation", "value": 0.1 }
+      "global.dark-mode": false
+    },
+    "variant": {
+      "name": "canary",
+      "type": "canary"
     }
   }
 }
 ```
 
-This ensures that critical flags (like deployment variants) are available immediately upon module load, without waiting for a separate FeatureClient call.
+### 2. SSE Stream (Hot Swapping)
+**`GET /api/stream?appName=shell&env=production&tenantId=acme`**
 
-### Configurable Fallback (Advanced)
+*   **Event**: `message`
+*   **Data**: `CONFIG_CHANGED`
 
-By default, the client falls back to the `STABLE` release track if the selected version (e.g., Canary) fails to load. You can override this behavior per feature flag.
+---
 
-**UseCase**: You want to test a `CANARY` release but fallback to `BETA` instead of `STABLE` if it breaks.
+## Deployment Strategies
 
-**Configuration (FF4j Custom Properties)**:
-1.  **`trackMapping`**: `CANARY` (Target Track)
-2.  **`fallbackTrack`**: `BETA` (Fallback Track)
+The client supports sophisticated deployment strategies driven by the backend:
 
-The resolver will prioritize `CANARY`. If `CANARY` is missing or the selection logic fails, it will attempt to return `BETA` as the fallback url.
-
-## Deployment Strategies & Use Cases
-
-The system supports multiple resolution strategies driven by FF4j algorithms.
-
-### 1. Canary Releases (Traffic Splitting)
-*   **Goal**: Gradually roll out a new version to a percentage of users to verify stability.
-*   **Mechanism**: **Weighted Random Probability** (Stateless).
-*   **Algorithm**: `DarkLaunchStrategy` (or `PonderationStrategy`).
-    - Randomly selects a version based on configured weight (e.g., 20% Canary, 80% Stable).
-    - **Use Case**: Testing infrastructure impact or general stability on a subset of traffic.
-
-### 2. A/B Testing (Experimentation)
-*   **Goal**: Compare user behavior between two variants (e.g., "New UI" vs "Old UI") with consistent user bucketing.
-*   **Mechanism**: **Sticky Sessions / ID Hashing**.
-*   **Algorithm**: `PonderationStrategy` (with Hashing) or `ExpressionFlipStrategy`.
-    - Hashes a unique identifier (User ID, Session ID) to a bucket.
-    - **Guarantees**: User X *always* sees Variant A; User Y *always* sees Variant B.
-    - **Use Case**: UX conversion experiments, feature validation.
-
-### 3. Normal Fallback (Resiliency)
-*   **Goal**: Ensure high availability even if the cutting-edge version fails.
-*   **Mechanism**: **Client-Side Failover**.
-*   **Algorithm**: `Standard` (Default).
-*   **Behavior**:
-    - The client attempts to load the `Selected` version (Canary/Beta/Stable).
-    - If loading fails (Network Error, 404, Script Error), it **automatically** loads the `Fallback` version (Stable).
-    - **Note**: Fallback is now always provided, even if the primary version is Stable, to support retry mechanisms.
-
-### 4. Handling Traffic Weights (Best Practice)
-For advanced traffic splitting, use a standardized "Routing Flag" (e.g., `profile.routing`).
-*   **Pattern**: Separation of concerns.
-    *   `profile.routing`: Controls **Deployment** (Version Selection). Mapped to `CANARY`.
-    *   `profile.new-ui`: Controls **Visibility** (Feature Toggle).
-*   **Weight**: Managed via `trafficWeight` custom property (or FF4j Strategy) on the Routing Flag.
-*   **Benefit**: You can deploy code (Canary) without showing the UI feature, enabling true "Dark Launches".
-
-## Resilience & Fallback
-
-The client includes a built-in failover mechanism:
-
-1.  **Resolution**: Fetches configuration (`selected` and `fallback` versions).
-2.  **Primary Attempt**: Tries to load the `selected` version.
-3.  **Automatic Failover**: If the primary fails (e.g., 404, network error) and a `fallback` is provided in the discovery response, the client automatically attempts to load the fallback version.
-
-
-## Failure & Rollback Playbooks
-
-Operational procedures for handling common failure scenarios.
-
-### 4.1 Discovery Server Down
-*   **Behavior**: The Shell uses the last successful cached resolution (stored in `localStorage` or memory).
-*   **Impact**: **No Total Outage**. The application continues to function using previously resolved module URLs (CDN).
-*   **Recovery**: Once the server is back, the client automatically refreshes the configuration on the next session/reload.
-
-### 4.2 Canary Failure (e.g., Error Rate Spike)
-*   **Trigger**: Monitoring detects high error rate in the Canary version.
-*   **Action**:
-    1.  Go to FF4j Console.
-    2.  Toggle `profile.routing` to **OFF** (or set `trackMapping` to `STABLE`).
-*   **Result**:
-    *   ✔ **Instant Rollback**: All new traffic immediately resolves to `STABLE`.
-    *   ✔ **No Redeploy**: No code changes or CI/CD pipelines required.
-
-### 4.3 Broken Version (Critical Defect)
-*   **Scenario**: A specific version (e.g., `1.2.0`) has a critical bug but is not behind a feature flag.
-*   **Action**:
-    1.  Go to Dashboard / Database.
-    2.  Set `active = false` for Version `1.2.0`.
-*   **Result**: The Discovery Service will **never select** this version again. It will automatically find the next available active version (e.g., `1.1.0`).
-
-### 4.4 Partial Region Failure
-*   **Scenario**: One region (e.g., `us-east`) is degraded.
-*   **Action**: Apply a policy override per environment in FF4j/Configuration.
-*   **Result**: Redirect traffic to a healthy region's CDN or version without code changes.
+| Strategy | Description | Mechanism |
+| :--- | :--- | :--- |
+| **Standard** | Direct mapping to the Active version. | Default behavior. |
+| **Canary** | Traffic splitting (e.g., 10% users). | Weighted probability via Feature Flags. |
+| **A/B Test** | Persistent user bucketing. | Sticky sessions / Hashing. |
+| **Blue/Green** | Instant environment switch. | Toggling the active Deployment version. |
+| **Tenant Specific** | Custom version for a specific tenant. | Tenant ID match in `Deployment` table. |
 
 ## Development
 
@@ -317,7 +176,4 @@ npm run build
 
 # Test
 npm test
-
-# Lint
-npm run lint
 ```
