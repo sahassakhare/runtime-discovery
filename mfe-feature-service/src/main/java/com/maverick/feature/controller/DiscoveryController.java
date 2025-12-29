@@ -11,9 +11,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.ff4j.FF4j;
 import io.openfeature.sdk.MutableContext;
 import io.openfeature.sdk.OpenFeatureAPI;
-import org.ff4j.FF4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.scheduling.annotation.Scheduled;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import java.util.HashMap;
 import java.util.List;
@@ -28,9 +33,22 @@ import java.util.Optional;
 public class DiscoveryController {
 
     private final MicrofrontendRepository mfeRepository;
-    private final VersionRepository versionRepository;
+    private final com.maverick.feature.repository.DeploymentRepository deploymentRepository; // Injected
     private final FF4j ff4j;
     private final OpenFeatureAPI openFeatureAPI;
+
+    private final List<ClientEmitter> emitters = new CopyOnWriteArrayList<>();
+
+    // Simple state tracking to detect changes
+    private String lastStateSignature = "";
+
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    class ClientEmitter {
+        private SseEmitter emitter;
+        private String appName;
+        private String env;
+    }
 
     @javax.annotation.PostConstruct
     public void init() {
@@ -38,113 +56,151 @@ public class DiscoveryController {
                 .println(">>> INJECTED FF4j Bean into DiscoveryController: " + System.identityHashCode(ff4j) + " <<<");
     }
 
+    @GetMapping("/stream")
+    public SseEmitter streamUpdates(
+            @RequestParam String appName,
+            @RequestParam String env) {
+
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        ClientEmitter client = new ClientEmitter(emitter, appName, env);
+        this.emitters.add(client);
+
+        emitter.onCompletion(() -> this.emitters.remove(client));
+        emitter.onTimeout(() -> this.emitters.remove(client));
+
+        try {
+            emitter.send(SseEmitter.event().name("connected").data("CONNECTED"));
+        } catch (IOException e) {
+            emitter.completeWithError(e);
+        }
+
+        return emitter;
+    }
+
+    @Scheduled(fixedRate = 2000)
+    @org.springframework.transaction.annotation.Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void detectStateChange() {
+        // High-performance dirty check on active deployments
+        StringBuilder signature = new StringBuilder();
+
+        // Check ALL active deployments to detect state changes globally
+        // In a real optimized system, we could query max(updated_at)
+        List<com.maverick.feature.domain.Deployment> activeDeployments = deploymentRepository.findAll();
+
+        activeDeployments.stream().filter(com.maverick.feature.domain.Deployment::isActive).forEach(d -> {
+            signature.append(d.getId())
+                    .append(d.getEnvironment())
+                    .append(d.isActive());
+        });
+
+        // Check ALL feature flags to support generic hot-swapping
+        try {
+            // DEBUG: Verify Store Type
+            // log.info("FeatureStore Type: " +
+            // ff4j.getFeatureStore().getClass().getName());
+
+            Map<String, org.ff4j.core.Feature> features = ff4j.getFeatureStore().readAll();
+            features.forEach((uid, f) -> {
+                signature.append(uid).append("=").append(f.isEnable()).append("|");
+            });
+            log.info("DEBUG STATE SIGNATURE: " + signature.toString());
+        } catch (Exception e) {
+            log.trace("Feature store check failed silently", e);
+        }
+
+        String newState = signature.toString();
+        if (!newState.equals(lastStateSignature)) {
+            log.info("State Change Detected! Old: '{}' -> New: '{}'", lastStateSignature, newState);
+            if (!lastStateSignature.isEmpty()) {
+                log.info("Configuration state change detected. Broadcasting update.");
+                broadcast("CONFIG_CHANGED", "CONFIG_CHANGED");
+            }
+            lastStateSignature = newState;
+        }
+    }
+
+    private void broadcast(String type, String payload) {
+        List<ClientEmitter> deadEmitters = new CopyOnWriteArrayList<>();
+        this.emitters.forEach(client -> {
+            try {
+                // Enterprise Filtering: Broadcast to everyone for now as detecting exactly WHAT
+                // changed
+                // for WHICH tenant/env from a simple hash signature is complex.
+                // Optimally, we would pass the "Changed Context" to this method and filter:
+                // if (client.getEnv().equals(changedEnv)) ...
+
+                SseEmitter.SseEventBuilder event = SseEmitter.event()
+                        .name("message")
+                        .data(payload);
+                client.getEmitter().send(event);
+            } catch (IOException e) {
+                deadEmitters.add(client);
+            }
+        });
+        this.emitters.removeAll(deadEmitters);
+    }
+
     @PostMapping("/resolve")
     public ResponseEntity<ResolutionResponse> resolve(@RequestBody ResolutionRequest request) {
         String remoteName = request.getRemoteName();
-        log.info("Resolving remote: {}", remoteName);
+        // Use provided env or default to "production"
+        String env = (request.getEnvironment() != null) ? request.getEnvironment() : "production";
+        String tenantId = request.getTenantId();
 
-        // 1. Lookup MFE and Versions
-        Optional<Microfrontend> mfeOpt = mfeRepository.findByName(remoteName);
-        if (mfeOpt.isEmpty()) {
+        log.info("Resolving remote: {} for env: {} tenant: {}", remoteName, env, tenantId);
+
+        // 1. Enterprise Resolution Strategy
+        // Priority 1: Specific Tenant Deployment
+        Optional<com.maverick.feature.domain.Deployment> deploymentOpt = Optional.empty();
+
+        if (tenantId != null) {
+            deploymentOpt = deploymentRepository.findActiveByTenant(remoteName, env, tenantId);
+        }
+
+        // Priority 2: Global Deployment (Fallthrough)
+        if (deploymentOpt.isEmpty()) {
+            deploymentOpt = deploymentRepository.findActiveGlobal(remoteName, env);
+        }
+
+        if (deploymentOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        Microfrontend mfe = mfeOpt.get();
-        List<Version> versions = versionRepository.findByMicrofrontendId(mfe.getId());
 
-        // 2. Determine Strategy via FF4j Metadata (Release Tracks)
+        com.maverick.feature.domain.Deployment deployment = deploymentOpt.get();
+        Version selectedVersion = deployment.getVersion();
+
+        // 2. Feature Flags (OpenFeature)
         Map<String, Object> flags = new HashMap<>();
-
-        // Build OpenFeature Context
         MutableContext evaluationContext = new MutableContext();
         if (request.getContext() != null) {
             request.getContext().forEach((k, v) -> evaluationContext.add(k, String.valueOf(v)));
         }
+        evaluationContext.add("environment", env);
+        if (tenantId != null)
+            evaluationContext.add("tenantId", tenantId);
 
-        String targetTrack = "STABLE"; // Default
-        String fallbackTrack = "STABLE"; // Default fallback
-        String groupName = mfe.getFeatureGroupName();
-
-        if (groupName != null && !groupName.isEmpty()) {
-            Map<String, org.ff4j.core.Feature> groupFeatures = ff4j.getFeatureStore().readGroup(groupName);
+        Microfrontend mfe = selectedVersion.getMicrofrontend();
+        if (mfe.getFeatureGroupName() != null) {
+            Map<String, org.ff4j.core.Feature> groupFeatures = ff4j.getFeatureStore()
+                    .readGroup(mfe.getFeatureGroupName());
             for (org.ff4j.core.Feature f : groupFeatures.values()) {
-                String fid = f.getUid();
-                // OpenFeature Evaluation
-                boolean isEnabled = openFeatureAPI.getClient().getBooleanValue(fid, false, evaluationContext);
-                flags.put(fid, isEnabled);
-
-                // Scalable: Check if this flag maps to a specific release track
-                if (isEnabled && f.getCustomProperties().containsKey("trackMapping")) {
-                    String mappedTrack = f.getCustomProperties().get("trackMapping").asString();
-                    if (isHigherPriority(mappedTrack, targetTrack)) {
-                        targetTrack = mappedTrack;
-
-                        // Check for optional fallback override
-                        if (f.getCustomProperties().containsKey("fallbackTrack")) {
-                            fallbackTrack = f.getCustomProperties().get("fallbackTrack").asString();
-                        }
-                    }
-                }
+                boolean isEnabled = openFeatureAPI.getClient().getBooleanValue(f.getUid(), false, evaluationContext);
+                flags.put(f.getUid(), isEnabled);
             }
         }
 
-        // 3. Selection Logic
-        final String finalTargetTrack = targetTrack;
-        Optional<Version> selectedVersionOpt = versions.stream()
-                .filter(v -> v.isActive() && finalTargetTrack.equalsIgnoreCase(v.getReleaseTrack()))
-                .findFirst();
-
-        // Fallback to designated fallback track if selected not found
-        if (selectedVersionOpt.isEmpty() && !fallbackTrack.equalsIgnoreCase(targetTrack)) {
-            String finalFallbackTrack = fallbackTrack;
-            selectedVersionOpt = versions.stream()
-                    .filter(v -> v.isActive() && finalFallbackTrack.equalsIgnoreCase(v.getReleaseTrack()))
-                    .findFirst();
-            targetTrack = fallbackTrack;
-        }
-
-        if (selectedVersionOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        Version selected = selectedVersionOpt.get();
-
-        // 4. Build Response
+        // 3. Build Response
         ResolutionResponse.ResolutionResponseBuilder responseBuilder = ResolutionResponse.builder()
                 .remoteName(remoteName)
-                .selected(toRemoteVersion(selected))
+                .selected(toRemoteVersion(selectedVersion))
                 .cacheTtlSeconds(60);
 
         ResolutionResponse.ResolutionContext.ResolutionContextBuilder contextBuilder = ResolutionResponse.ResolutionContext
                 .builder()
                 .flags(flags);
 
-        // Always attempt to include fallback version for resiliency
-        // even if we are on STABLE (allows client-side retries or alternative stable
-        // versions)
-        String finalFallbackTrack = fallbackTrack;
-        versions.stream()
-                .filter(v -> v.isActive() && finalFallbackTrack.equalsIgnoreCase(v.getReleaseTrack()))
-                .findFirst()
-                .ifPresent(fb -> {
-                    // Start of block
-                    responseBuilder.fallback(toRemoteVersion(fb));
-                });
-
-        // Always include variant info if we are not on STABLE
-        if (!"STABLE".equalsIgnoreCase(targetTrack)) {
-            contextBuilder.variant(ResolutionResponse.Variant.builder()
-                    .name(targetTrack.toLowerCase())
-                    .type(targetTrack.toLowerCase())
-                    .build());
-        }
-
         responseBuilder.resolutionContext(contextBuilder.build());
-
         return ResponseEntity.ok(responseBuilder.build());
-    }
-
-    private boolean isHigherPriority(String newTrack, String currentTrack) {
-        Map<String, Integer> priority = Map.of("CANARY", 3, "BETA", 2, "STABLE", 1);
-        return priority.getOrDefault(newTrack.toUpperCase(), 0) > priority.getOrDefault(currentTrack.toUpperCase(), 0);
     }
 
     private ResolutionResponse.RemoteVersion toRemoteVersion(Version version) {

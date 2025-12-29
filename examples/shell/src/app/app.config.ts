@@ -1,7 +1,7 @@
 import { ApplicationConfig, importProvidersFrom } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
-import { provideDiscovery } from '@maverick/runtime-discovery';
+import { provideDiscovery } from '../../../../src/runtime-discovery/provide-discovery';
 
 import { routes } from './app.routes';
 

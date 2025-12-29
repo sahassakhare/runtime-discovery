@@ -17,6 +17,8 @@ public class DataInitializer {
     public CommandLineRunner initData(
             com.maverick.feature.repository.MicrofrontendRepository mfeRepo,
             com.maverick.feature.repository.VersionRepository versionRepo,
+            com.maverick.feature.repository.DeploymentRepository deploymentRepo,
+            com.maverick.feature.repository.TenantRepository tenantRepo,
             org.ff4j.FF4j ff4j,
             org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         return args -> {
@@ -33,6 +35,19 @@ public class DataInitializer {
                 System.err.println(">>> VERIFICATION FAILED: " + e.getMessage() + " <<<");
             }
 
+            // 3.1 Seed Tenants (Enterprise)
+            // Even if Deployment uses a String ID, having the Table is crucial for
+            // validation and management.
+            if (tenantRepo.count() == 0) {
+                com.maverick.feature.domain.Tenant t1 = new com.maverick.feature.domain.Tenant("acme", "Acme Corp");
+                tenantRepo.save(t1);
+
+                com.maverick.feature.domain.Tenant t2 = new com.maverick.feature.domain.Tenant("beta-users",
+                        "Beta Testers Group");
+                tenantRepo.save(t2);
+                System.out.println(">>> Seeded Tenants: acme, beta-users <<<");
+            }
+
             // 4. Seed Microfrontends and Versions
             if (mfeRepo.count() == 0) {
                 Microfrontend mfe = new Microfrontend("remote-profile");
@@ -47,24 +62,38 @@ public class DataInitializer {
                 Version v1 = new Version();
                 v1.setVersion("1.0.0");
                 v1.setRemoteEntry("http://localhost:4201/remoteEntry.js");
-                // v1.setIntegrity(null); // Disable SRI for dev
-                v1.setActive(true);
-                v1.setReleaseTrack("STABLE");
                 v1.setMicrofrontend(mfe);
                 v1.setCreatedAt(LocalDateTime.now());
-                versionRepo.save(v1);
+                v1 = versionRepo.save(v1);
+
+                // Create Stable Deployment
+                com.maverick.feature.domain.Deployment d1 = new com.maverick.feature.domain.Deployment(v1, "production",
+                        true);
+                deploymentRepo.save(d1);
 
                 Version v2 = new Version();
                 v2.setVersion("1.1.0-canary");
                 v2.setRemoteEntry("http://localhost:4201/remoteEntry.js");
-                // v2.setIntegrity(null);
-                v2.setActive(true);
-                v2.setReleaseTrack("CANARY");
                 v2.setMicrofrontend(mfe);
                 v2.setCreatedAt(LocalDateTime.now());
-                versionRepo.save(v2);
+                v2 = versionRepo.save(v2);
 
-                System.out.println(">>> Database seeded with remote-profile (v1.0.0 and v1.1.0-canary) <<<");
+                // Create Canary Deployment (Simulated as "production" env but handled via FF4j
+                // logic mostly, or separate env)
+                // For this architecture, we map it to "staging" to verify env scoping
+                com.maverick.feature.domain.Deployment stagingDeploy = new com.maverick.feature.domain.Deployment(v2,
+                        "staging",
+                        true);
+                deploymentRepo.save(stagingDeploy);
+
+                // 4.3 Create Active Deployment for "development" (Canary)
+                com.maverick.feature.domain.Deployment devDeploy = new com.maverick.feature.domain.Deployment(v2,
+                        "development", true);
+                deploymentRepo.save(devDeploy);
+
+                System.out
+                        .println(
+                                ">>> Database seeded with remote-profile (v1.0.0 Stable / v1.1.0-canary Staging & Dev) <<<");
             }
         };
     }

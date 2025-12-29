@@ -7,7 +7,6 @@ com/maverick/feature/domain/RuntimeInstance$RuntimeInstanceBuilder.class
 io/openfeature/sdk/Metadata.class
 com/maverick/feature/dto/ResolutionResponse.class
 com/maverick/feature/domain/Microfrontend.class
-com/maverick/feature/controller/DashboardController.class
 com/maverick/feature/config/OpenFeatureConfig.class
 com/maverick/feature/repository/RuntimeInstanceRepository.class
 com/maverick/feature/config/SecurityConfig.class

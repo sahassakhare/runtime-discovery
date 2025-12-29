@@ -21,12 +21,8 @@ public class Version {
     @Column(nullable = false)
     private String remoteEntry; // URL
 
+    // Artifact metadata
     private String integrity; // SRI hash
-
-    private boolean active; // Is this the currently selected one?
-
-    // For track-based rollouts (e.g., STABLE, CANARY, BETA)
-    private String releaseTrack;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "microfrontend_id")

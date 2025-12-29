@@ -27,3 +27,13 @@ yarn-error.log*
 .npmrc
 *.tgz
 package-lock.json
+
+# Java / Maven
+target/
+*.class
+
+# Angular
+.angular/
+
+# Vite
+dashboard-ui/dist/

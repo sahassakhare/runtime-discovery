@@ -11,7 +11,5 @@ import java.util.Optional;
 public interface VersionRepository extends JpaRepository<Version, Long> {
     Optional<Version> findByMicrofrontendIdAndVersion(Long microfrontendId, String version);
 
-    Optional<Version> findByMicrofrontendIdAndActiveTrue(Long microfrontendId);
-
     List<Version> findByMicrofrontendId(Long microfrontendId);
 }

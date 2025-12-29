@@ -7,5 +7,7 @@ import java.util.Map;
 public class ResolutionRequest {
     private String remoteName;
     private String flagName;
+    private String environment; // Production, Staging
+    private String tenantId; // Multi-tenancy
     private Map<String, Object> context;
 }

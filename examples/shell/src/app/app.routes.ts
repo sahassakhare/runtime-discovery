@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { AppInjector } from './app-injector';
-import { REMOTE_CLIENT, RemoteClient } from '@maverick/runtime-discovery';
+import { REMOTE_CLIENT } from '../../../../src/runtime-discovery/tokens';
+import { RemoteClient } from '../../../../src/runtime-discovery/remote-client';
 import { loadRemoteModule } from '@angular-architects/module-federation';
 
 export const routes: Routes = [
@@ -26,5 +27,9 @@ export const routes: Routes = [
                 throw err;
             });
         }
+    },
+    {
+        path: 'live',
+        loadComponent: () => import('./live-profile/live-profile.component').then(m => m.LiveProfileComponent)
     }
 ];

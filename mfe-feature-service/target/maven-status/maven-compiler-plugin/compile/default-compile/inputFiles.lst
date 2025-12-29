@@ -2,6 +2,7 @@
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/io/openfeature/sdk/Client.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/domain/Version.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/dto/ResolutionRequest.java
+/Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/repository/DeploymentRepository.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/config/FF4jOpenFeatureProvider.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/controller/DiscoveryController.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/dto/ResolutionResponse.java
@@ -17,8 +18,11 @@
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/repository/VersionRepository.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/io/openfeature/sdk/ProviderEvaluation.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/io/openfeature/sdk/OpenFeatureAPI.java
+/Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/domain/Deployment.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/controller/DashboardController.java
+/Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/domain/Tenant.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/io/openfeature/sdk/FeatureProvider.java
+/Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/repository/TenantRepository.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/config/SecurityConfig.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/io/openfeature/sdk/MutableContext.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/repository/MicrofrontendRepository.java

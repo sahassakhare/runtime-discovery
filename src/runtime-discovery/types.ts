@@ -88,3 +88,17 @@ export interface RuntimeDiscovery {
    */
   resolveRemote(remoteName: string, context?: Record<string, any>): Promise<ResolveRemoteResponse>;
 }
+
+/**
+ * Configures the Discovery Client properties.
+ */
+export interface DiscoveryConfig {
+  /** Base URL of the discovery service */
+  url: string;
+  /** Environment name (e.g. 'production', 'staging') */
+  environment: string;
+  /** Application Name (e.g. 'shell-ui', 'payment-remote') */
+  appName: string;
+  /** Optional Tenant ID for multi-tenant resolution */
+  tenantId?: string;
+}

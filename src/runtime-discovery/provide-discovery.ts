@@ -1,23 +1,8 @@
-import { EnvironmentProviders, makeEnvironmentProviders, InjectionToken, ENVIRONMENT_INITIALIZER } from '@angular/core';
+import { EnvironmentProviders, makeEnvironmentProviders, ENVIRONMENT_INITIALIZER } from '@angular/core';
 import { HttpRuntimeDiscovery, registerApplication } from './runtime-discovery';
 import { RemoteClient } from './remote-client';
-
-/**
- * Injection token for the RemoteClient instance.
- */
-export const REMOTE_CLIENT = new InjectionToken<RemoteClient>('REMOTE_CLIENT');
-
-/**
- * Configures the Discovery Client properties.
- */
-export interface DiscoveryConfig {
-    /** Base URL of the discovery service */
-    url: string;
-    /** Environment name (e.g. 'production', 'staging') */
-    environment: string;
-    /** Application Name (e.g. 'shell-ui', 'payment-remote') */
-    appName: string;
-}
+import { DiscoveryConfig } from './types';
+import { REMOTE_CLIENT, DISCOVERY_CONFIG } from './tokens';
 
 /**
  * Provides the RemoteClient and its dependencies.
@@ -28,9 +13,13 @@ export interface DiscoveryConfig {
 export function provideDiscovery(config: DiscoveryConfig): EnvironmentProviders {
     return makeEnvironmentProviders([
         {
+            provide: DISCOVERY_CONFIG,
+            useValue: config
+        },
+        {
             provide: REMOTE_CLIENT,
             useFactory: () => {
-                const discovery = new HttpRuntimeDiscovery(config.url, config.environment, config.appName);
+                const discovery = new HttpRuntimeDiscovery(config.url, config.environment, config.appName, config.tenantId);
                 return new RemoteClient(discovery);
             }
         },

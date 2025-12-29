@@ -5,3 +5,6 @@ export * from './runtime-discovery/router-helper';
 export * from './runtime-discovery/provide-discovery';
 export * from './feature-flags/feature-client';
 export * from './runtime-discovery/openfeature-provider';
+export * from './runtime-discovery/tokens';
+export * from './runtime-discovery/live-discovery.service';
+export * from './runtime-discovery/mfe-host.component';

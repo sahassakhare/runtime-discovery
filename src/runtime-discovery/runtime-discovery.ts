@@ -1,4 +1,4 @@
-import { DiscoveryConfig } from './provide-discovery';
+import { DiscoveryConfig } from './types';
 
 /**
  * Key-Value implementation of the RuntimeDiscovery that communicates with a remote HTTP service.
@@ -17,7 +17,7 @@ export function registerApplication(config: DiscoveryConfig) {
   const payload = {
     appName: config.appName,
     environment: config.environment,
-    url: window.location.href
+    url: window.location.origin
   };
 
   fetch(`${config.url}/registry/instances`, {
@@ -34,11 +34,13 @@ export class HttpRuntimeDiscovery {
    * @param discoveryUrl - Base URL of the discovery service.
    * @param environment - The current environment name (e.g., 'production', 'staging').
    * @param appName - The name of the current application.
+   * @param tenantId - Optional tenant ID.
    */
   constructor(
     private discoveryUrl: string,
     private environment: string,
-    private appName: string
+    private appName: string,
+    private tenantId?: string
   ) { }
 
   /**
@@ -51,11 +53,15 @@ export class HttpRuntimeDiscovery {
    * @throws Will throw an error if the HTTP request fails.
    */
   async resolveRemote(remoteName: string, context?: Record<string, any>) {
-    const body = {
+    const body: any = {
       remoteName,
       environment: this.environment,
       context: context || {}
     };
+
+    if (this.tenantId) {
+      body.tenantId = this.tenantId;
+    }
 
     const res = await fetch(`${this.discoveryUrl}/resolve`, {
       method: 'POST',
