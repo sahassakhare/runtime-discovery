@@ -29,6 +29,7 @@ export interface GraphNode {
     id: string;
     label: string;
     type: 'root' | 'strategy' | 'version';
+    traffic?: any;
 }
 
 export interface GraphEdge {

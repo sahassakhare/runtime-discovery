@@ -1,4 +1,4 @@
-import { Provider, ResolutionDetails, EvaluationContext, JsonValue, ResolutionReason, StandardResolutionReasons } from '@openfeature/web-sdk';
+import { Provider } from '@openfeature/web-sdk';
 
 /**
  * OpenFeatureProvider
@@ -22,72 +22,72 @@ export class OpenFeatureProvider implements Provider {
         return flags[flagKey];
     }
 
-    resolveBooleanEvaluation(flagKey: string, defaultValue: boolean, context: EvaluationContext): ResolutionDetails<boolean> {
+    resolveBooleanEvaluation(flagKey: string, defaultValue: boolean, context: any): any {
         const value = this.getFlag(flagKey);
 
         if (typeof value === 'boolean') {
             return {
                 value,
-                reason: StandardResolutionReasons.TARGETING_MATCH
+                reason: 'TARGETING_MATCH' as any
             };
         }
 
         return {
             value: defaultValue,
-            reason: value === undefined ? StandardResolutionReasons.DEFAULT : StandardResolutionReasons.ERROR
+            reason: value === undefined ? 'DEFAULT' as any : 'ERROR' as any
         };
     }
 
-    resolveStringEvaluation(flagKey: string, defaultValue: string, context: EvaluationContext): ResolutionDetails<string> {
+    resolveStringEvaluation(flagKey: string, defaultValue: string, context: any): any {
         const value = this.getFlag(flagKey);
 
         if (typeof value === 'string') {
             return {
                 value,
-                reason: StandardResolutionReasons.TARGETING_MATCH
+                reason: 'TARGETING_MATCH' as any
             };
         }
 
         return {
             value: defaultValue,
-            reason: value === undefined ? StandardResolutionReasons.DEFAULT : StandardResolutionReasons.ERROR
+            reason: value === undefined ? 'DEFAULT' as any : 'ERROR' as any
         };
     }
 
-    resolveNumberEvaluation(flagKey: string, defaultValue: number, context: EvaluationContext): ResolutionDetails<number> {
+    resolveNumberEvaluation(flagKey: string, defaultValue: number, context: any): any {
         const value = this.getFlag(flagKey);
 
         if (typeof value === 'number') {
             return {
                 value,
-                reason: StandardResolutionReasons.TARGETING_MATCH
+                reason: 'TARGETING_MATCH' as any
             };
         }
 
         return {
             value: defaultValue,
-            reason: value === undefined ? StandardResolutionReasons.DEFAULT : StandardResolutionReasons.ERROR
+            reason: value === undefined ? 'DEFAULT' as any : 'ERROR' as any
         };
     }
 
-    resolveObjectEvaluation<T extends JsonValue>(flagKey: string, defaultValue: T, context: EvaluationContext): ResolutionDetails<T> {
+    resolveObjectEvaluation<T extends any>(flagKey: string, defaultValue: T, context: any): any {
         const value = this.getFlag(flagKey);
 
         if (value && typeof value === 'object') {
             return {
                 value: value as T,
-                reason: StandardResolutionReasons.TARGETING_MATCH
+                reason: 'TARGETING_MATCH' as any
             };
         }
 
         return {
             value: defaultValue,
-            reason: value === undefined ? StandardResolutionReasons.DEFAULT : StandardResolutionReasons.ERROR
+            reason: value === undefined ? 'DEFAULT' as any : 'ERROR' as any
         };
     }
 
     // Hook for context changes - not needed since we drive from window state
-    onContextChange(oldContext: EvaluationContext, newContext: EvaluationContext): Promise<void> {
+    onContextChange(oldContext: any, newContext: any): Promise<void> {
         return Promise.resolve();
     }
 }

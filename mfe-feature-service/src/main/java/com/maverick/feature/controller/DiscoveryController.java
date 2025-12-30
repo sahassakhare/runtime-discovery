@@ -50,7 +50,7 @@ public class DiscoveryController {
         private String env;
     }
 
-    @javax.annotation.PostConstruct
+    @jakarta.annotation.PostConstruct
     public void init() {
         System.out
                 .println(">>> INJECTED FF4j Bean into DiscoveryController: " + System.identityHashCode(ff4j) + " <<<");
@@ -181,11 +181,16 @@ public class DiscoveryController {
 
         Microfrontend mfe = selectedVersion.getMicrofrontend();
         if (mfe.getFeatureGroupName() != null) {
-            Map<String, org.ff4j.core.Feature> groupFeatures = ff4j.getFeatureStore()
-                    .readGroup(mfe.getFeatureGroupName());
-            for (org.ff4j.core.Feature f : groupFeatures.values()) {
-                boolean isEnabled = openFeatureAPI.getClient().getBooleanValue(f.getUid(), false, evaluationContext);
-                flags.put(f.getUid(), isEnabled);
+            try {
+                Map<String, org.ff4j.core.Feature> groupFeatures = ff4j.getFeatureStore()
+                        .readGroup(mfe.getFeatureGroupName());
+                for (org.ff4j.core.Feature f : groupFeatures.values()) {
+                    boolean isEnabled = openFeatureAPI.getClient().getBooleanValue(f.getUid(), false,
+                            evaluationContext);
+                    flags.put(f.getUid(), isEnabled);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to resolve features for group '{}': {}", mfe.getFeatureGroupName(), e.getMessage());
             }
         }
 

@@ -36,7 +36,8 @@ public class FeatureController {
         // For simple list, we can stick to FF4j check or OF getBooleanValue(id, false,
         // null)
         ff4j.getFeatures()
-                .forEach((id, f) -> beanFeatures.put(id, openFeatureAPI.getClient().getBooleanValue(id, false, null)));
+                .forEach((id, f) -> beanFeatures.put(id,
+                        openFeatureAPI.getClient().getBooleanValue(id, false, null)));
         result.put("ff4j_bean_features", beanFeatures);
         result.put("ff4j_store_class", ff4j.getFeatureStore().getClass().getName());
 

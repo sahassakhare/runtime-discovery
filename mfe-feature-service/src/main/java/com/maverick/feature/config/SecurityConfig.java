@@ -1,35 +1,30 @@
 package com.maverick.feature.config;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
+public class SecurityConfig {
 
-    @Override
-    public void configure(org.springframework.security.config.annotation.web.builders.WebSecurity web) {
-        // Allow Swagger to be accessed without authentication
-        web.ignoring().antMatchers("/v2/api-docs",
-                "/configuration/ui",
-                "/swagger-resources/**",
-                "/configuration/security",
-                "/swagger-ui.html",
-                "/webjars/**");
-    }
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors().and()
-                .csrf().disable()
-                .authorizeRequests()
-                .antMatchers("/ff4j-web-console/**", "/static/**", "/vendor/**").permitAll()
-                .antMatchers("/**").permitAll()
-                .anyRequest().authenticated()
-                .and()
-                .headers().frameOptions().disable(); // Allow H2 Console
+                .cors(AbstractHttpConfigurer::disable) // Simplify for now, or Customizer.withDefaults() if needed
+                .csrf(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
+                                "/ff4j-web-console/**", "/api/features/**")
+                        .permitAll()
+                        .requestMatchers("/ff4j-web-console/**", "/static/**", "/vendor/**").permitAll()
+                        .requestMatchers("/**").permitAll()
+                        .anyRequest().authenticated())
+                .headers(headers -> headers.frameOptions(frame -> frame.disable())); // Allow H2 Console
+
+        return http.build();
     }
 }
