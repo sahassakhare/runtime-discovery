@@ -26,6 +26,12 @@ A robust, framework-agnostic client for resolving, loading, and hot-swapping mic
 *   **Canary Releases**: Route traffic to new versions based on percentage weights or user context.
 *   **Dark Launches**: Deploy code silently and toggle visibility via feature flags (`profile.new-ui`).
 
+### 🛡️ Governance & Policy Mesh (Active Enforcement)
+*   **Multi-Level Enforcement**: Policies support `BLOCK` (Hard Denial), `AUDIT` (Log only), and `ALLOW` (Priority Permit).
+*   **OPA (Open Policy Agent) Native**: Delegated complex logic to external OPA sidecars using native **Rego** support.
+*   **Runtime Guardrails**: Real-time evaluation of Environment Integrity, Security ABAC, and Version Compatibility.
+*   **Professional Side-Drawer UX**: Executive dashboard for policy management with real-time metrics and search.
+
 ### 🛡️ Resilience & Fallback
 *   **Automatic Failover**: If a primary version (e.g., Canary) fails to load (404/Network Error), the client automatically falls back to a stable version.
 *   **Discovery Caching**: Caches resolution responses to survive temporary Discovery Server outages.
