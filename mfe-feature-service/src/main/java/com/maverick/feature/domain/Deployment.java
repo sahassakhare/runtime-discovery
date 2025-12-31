@@ -1,13 +1,9 @@
 package com.maverick.feature.domain;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Data
-@NoArgsConstructor
 public class Deployment {
 
     @Id
@@ -18,8 +14,9 @@ public class Deployment {
     @JoinColumn(name = "version_id", nullable = false)
     private Version version;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String environment; // "production", "staging"
+    private Environment environment; // "PRODUCTION", "STAGING"
 
     @Column(nullable = true)
     private String tenantId; // NULL = Global
@@ -32,10 +29,77 @@ public class Deployment {
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();
 
-    public Deployment(Version version, String environment, boolean active) {
+    public Deployment(Version version, Environment environment, boolean active) {
         this.version = version;
         this.environment = environment;
         this.active = active;
         this.weight = 100;
+    }
+
+    public Deployment() {
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Version getVersion() {
+        return version;
+    }
+
+    public void setVersion(Version version) {
+        this.version = version;
+    }
+
+    public Environment getEnvironment() {
+        return environment;
+    }
+
+    public void setEnvironment(Environment environment) {
+        this.environment = environment;
+    }
+
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public int getWeight() {
+        return weight;
+    }
+
+    public void setWeight(int weight) {
+        this.weight = weight;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

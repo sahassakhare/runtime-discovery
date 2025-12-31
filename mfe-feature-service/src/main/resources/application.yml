@@ -1,0 +1,62 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: mfe-feature-service
+  datasource:
+    url: jdbc:h2:mem:maverickdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driverClassName: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
+  h2:
+    console:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+logging:
+  level:
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.togglz: DEBUG
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+togglz:
+  console:
+    enabled: true
+    path: /togglz-console
+    secured: false
+
+# Custom MFE Configuration
+mfe:
+  remote-urls:
+    remote-profile: http://localhost:4201/remoteEntry.js
+  tenants:
+    - id: acme
+      name: Acme Corp
+    - id: beta-users
+      name: Beta Testers Group

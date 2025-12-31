@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  opa:
+    image: openpolicyagent/opa:latest-static
+    ports:
+      - "8181:8181"
+    command:
+      - "run"
+      - "--server"
+      - "--log-level=debug"
+      - "--addr=:8181"
+      - "/policies"
+    volumes:
+      - ./policies:/policies
+    networks:
+      - mfe-network
+
+networks:
+  mfe-network:
+    driver: bridge

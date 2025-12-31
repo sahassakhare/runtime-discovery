@@ -8,5 +8,6 @@ import java.util.Optional;
 
 @Repository
 public interface RuntimeInstanceRepository extends JpaRepository<RuntimeInstance, Long> {
-    Optional<RuntimeInstance> findByAppNameAndEnvironmentAndUrl(String appName, String environment, String url);
+    Optional<RuntimeInstance> findByAppNameAndEnvironmentAndUrl(String appName,
+            com.maverick.feature.domain.Environment environment, String url);
 }

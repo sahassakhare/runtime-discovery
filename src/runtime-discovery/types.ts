@@ -67,6 +67,11 @@ export interface ResolveRemoteResponse {
      * Can be simple booleans (evaluated) or configuration objects (policies).
      */
     flags?: Record<string, any>;
+
+    /**
+     * Optional reason if the requested resolution was modified/blocked by Governance Policies.
+     */
+    governanceReason?: string;
   };
 
   /**

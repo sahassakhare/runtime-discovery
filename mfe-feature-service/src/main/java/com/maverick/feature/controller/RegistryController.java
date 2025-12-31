@@ -14,8 +14,9 @@ import java.time.LocalDateTime;
 @RequestMapping("/api/registry")
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
-@Slf4j
 public class RegistryController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RegistryController.class);
 
     private final RuntimeInstanceRepository repository;
 
@@ -23,11 +24,20 @@ public class RegistryController {
     public ResponseEntity<RuntimeInstance> registerInstance(@RequestBody RegisterInstanceRequest request) {
         log.info("Registering instance: {} at {}", request.getAppName(), request.getUrl());
 
+        com.maverick.feature.domain.Environment env = com.maverick.feature.domain.Environment.PRODUCTION;
+        try {
+            if (request.getEnvironment() != null) {
+                env = com.maverick.feature.domain.Environment.valueOf(request.getEnvironment().toUpperCase());
+            }
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid environment '{}', defaulting to PRODUCTION", request.getEnvironment());
+        }
+
         RuntimeInstance instance = repository.findByAppNameAndEnvironmentAndUrl(
-                request.getAppName(), request.getEnvironment(), request.getUrl())
+                request.getAppName(), env, request.getUrl())
                 .orElse(RuntimeInstance.builder()
                         .appName(request.getAppName())
-                        .environment(request.getEnvironment())
+                        .environment(env)
                         .url(request.getUrl())
                         .build());
 

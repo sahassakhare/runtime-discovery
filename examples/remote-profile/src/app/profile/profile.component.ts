@@ -11,7 +11,7 @@ import { CommonModule } from '@angular/common';
       <p>Version: <strong>{{ version }}</strong></p>
       
       <div *ngIf="newUiEnabled" style="background-color: #e0f7fa; padding: 10px;">
-        <h3>✨ New Beta UI Enabled!</h3>
+        <h3> New Beta UI Enabled!</h3>
         <p>You are seeing the enhanced profile experience.</p>
       </div>
 

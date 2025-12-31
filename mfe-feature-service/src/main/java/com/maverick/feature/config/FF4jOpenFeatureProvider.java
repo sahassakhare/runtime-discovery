@@ -4,14 +4,16 @@ import io.openfeature.sdk.FeatureProvider;
 import io.openfeature.sdk.Metadata;
 import io.openfeature.sdk.ProviderEvaluation;
 import io.openfeature.sdk.Value;
-import lombok.RequiredArgsConstructor;
 import org.ff4j.FF4j;
 import org.ff4j.core.Feature;
 
-@RequiredArgsConstructor
 public class FF4jOpenFeatureProvider implements FeatureProvider {
 
     private final FF4j ff4j;
+
+    public FF4jOpenFeatureProvider(FF4j ff4j) {
+        this.ff4j = ff4j;
+    }
 
     @Override
     public Metadata getMetadata() {
@@ -21,11 +23,59 @@ public class FF4jOpenFeatureProvider implements FeatureProvider {
     @Override
     public ProviderEvaluation<Boolean> getBooleanEvaluation(String key, boolean defaultValue,
             io.openfeature.sdk.EvaluationContext ctx) {
+
+        if (ctx != null) {
+            // 1. Explicit Override Check
+            // Shim returns Map<String, Object>
+            java.util.Map<String, Object> data = ctx.asMap();
+            if (data.containsKey(key)) {
+                Object v = data.get(key);
+                if (v instanceof Boolean) {
+                    return ProviderEvaluation.<Boolean>builder()
+                            .value((Boolean) v)
+                            .build();
+                } else if (v instanceof String) {
+                    // Startups might send "true"/"false" strings
+                    String sVal = (String) v;
+                    if ("true".equalsIgnoreCase(sVal) || "false".equalsIgnoreCase(sVal)) {
+                        return ProviderEvaluation.<Boolean>builder()
+                                .value(Boolean.parseBoolean(sVal))
+                                .build();
+                    }
+                }
+            }
+
+            // 2. Map OpenFeature Context to FF4j Execution Context
+            org.ff4j.core.FlippingExecutionContext fExCtx = new org.ff4j.core.FlippingExecutionContext();
+            for (java.util.Map.Entry<String, Object> entry : data.entrySet()) {
+                String k = entry.getKey();
+                Object val = entry.getValue();
+                if (val instanceof String)
+                    fExCtx.putString(k, (String) val);
+                else if (val instanceof Boolean)
+                    fExCtx.putBoolean(k, (Boolean) val);
+                else if (val instanceof Number)
+                    fExCtx.putDouble(k, ((Number) val).doubleValue());
+            }
+
+            if (!ff4j.getFeatureStore().exist(key)) {
+                return ProviderEvaluation.<Boolean>builder()
+                        .value(defaultValue)
+                        .build();
+            }
+
+            boolean enabled = ff4j.check(key, fExCtx);
+            return ProviderEvaluation.<Boolean>builder()
+                    .value(enabled)
+                    .build();
+        }
+
         if (!ff4j.getFeatureStore().exist(key)) {
             return ProviderEvaluation.<Boolean>builder()
                     .value(defaultValue)
                     .build();
         }
+
         boolean enabled = ff4j.check(key);
         return ProviderEvaluation.<Boolean>builder()
                 .value(enabled)

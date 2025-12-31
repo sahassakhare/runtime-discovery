@@ -54,6 +54,22 @@ export class RemoteClient {
     }
     console.debug(`[Maverick] Resolved ${remoteName} to ${resolved.selected.remoteEntry}`);
 
+    // Governance: Check for Policy enforcement
+    if (resolved.resolutionContext?.governanceReason) {
+      console.warn(`[Maverick] [GOVERNANCE] Action taken for ${remoteName}: ${resolved.resolutionContext.governanceReason}`);
+
+      // Dispatch governance event for UI (e.g., Toast notification)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('maverick:governance_alert', {
+          detail: {
+            remoteName,
+            reason: resolved.resolutionContext.governanceReason,
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
+    }
+
     // Governance: Register Features/Flags if present
     if (resolved.resolutionContext?.flags && typeof window !== 'undefined') {
       const globalFlags = (window as any).__MAVERICK_FLAGS__ || {};

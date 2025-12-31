@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @SpringBootApplication
 @EnableJpaAuditing
 @org.springframework.scheduling.annotation.EnableScheduling
+@org.springframework.boot.context.properties.EnableConfigurationProperties(com.maverick.feature.config.MfeProperties.class)
 public class MfeFeatureServiceApplication {
 
 	public static void main(String[] args) {

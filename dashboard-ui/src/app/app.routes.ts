@@ -30,6 +30,11 @@ export const routes: Routes = [
         component: SettingsComponent,
         title: 'Settings'
     },
+    {
+        path: 'governance',
+        loadComponent: () => import('./features/governance/governance.component').then(m => m.GovernanceComponent),
+        title: 'Governance'
+    },
     // Placeholder for Governance if we had a dedicated component
     {
         path: '**',

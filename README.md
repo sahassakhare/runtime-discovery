@@ -6,37 +6,37 @@ A robust, framework-agnostic client for resolving, loading, and hot-swapping mic
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
-### 🏢 Enterprise Multi-Tenancy
+###  Enterprise Multi-Tenancy
 *   **Tenant Isolation**: delivering specific versions of microfrontends based on the active `tenantId`.
 *   **Context-Aware Resolution**: Different tenants can see different versions (e.g., "Premium Users" get v2.0, "Standard" get v1.0).
 
-### ⚡ Live Hot Swapping (Fan-Out Architecture)
+###  Live Hot Swapping (Fan-Out Architecture)
 *   **Real-Time Updates**: Instantly push updates to connected clients using **Server-Sent Events (SSE)**.
 *   **Granular Swapping**: Uses a "Push-Signal, Pull-Data" model. The server sends a lightweight `CONFIG_CHANGED` signal; the client intelligently diffs Version and Feature Flags to reload *only* the affected MFEs.
 *   **Flicker-Free**: Components remain stable unless a specific update targeting them is detected.
 
-### 🌍 Environment Scoping
+###  Environment Scoping
 *   **Environment Isolation**: Distinct deployments for `development`, `staging`, and `production`.
 *   **Safe Promotion**: Promote immutable `Version` artifacts across environments without rebuilding.
 
-### 🚩 Feature Flags & Experimentation
+###  Feature Flags & Experimentation
 *   **Deep Integration**: Native support for **FF4j** and **OpenFeature**.
 *   **Canary Releases**: Route traffic to new versions based on percentage weights or user context.
 *   **Dark Launches**: Deploy code silently and toggle visibility via feature flags (`profile.new-ui`).
 
-### 🛡️ Governance & Policy Mesh (Active Enforcement)
+###  Governance & Policy Mesh (Active Enforcement)
 *   **Multi-Level Enforcement**: Policies support `BLOCK` (Hard Denial), `AUDIT` (Log only), and `ALLOW` (Priority Permit).
 *   **OPA (Open Policy Agent) Native**: Delegated complex logic to external OPA sidecars using native **Rego** support.
 *   **Runtime Guardrails**: Real-time evaluation of Environment Integrity, Security ABAC, and Version Compatibility.
 *   **Professional Side-Drawer UX**: Executive dashboard for policy management with real-time metrics and search.
 
-### 🛡️ Resilience & Fallback
+###  Resilience & Fallback
 *   **Automatic Failover**: If a primary version (e.g., Canary) fails to load (404/Network Error), the client automatically falls back to a stable version.
 *   **Discovery Caching**: Caches resolution responses to survive temporary Discovery Server outages.
 
-### 🔌 Automatic Runtime Registration
+###  Automatic Runtime Registration
 *   **Self-Discovery**: Applications automatically register themselves with the backend upon startup, building a live topology of the system.
 
 ---
