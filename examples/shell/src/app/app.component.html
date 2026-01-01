@@ -8,10 +8,40 @@
   </header>
 
   <main style="padding: 20px;">
-    <div style="background: #ecf0f1; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
-      <h3>Governance Status</h3>
-      <p>Using Discovery Service: <strong>http://localhost:8081</strong></p>
-      <p>Active Flags:</p>
+    <!-- Governance Control Panel -->
+    <div *ngIf="isLiveRoute()"
+      style="background: #ffffff; border: 1px solid #e1e4e8; padding: 20px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0; color: #2c3e50;">🛡️ Governance Control Center</h3>
+        <div style="display: flex; gap: 10px;">
+          <span [style.background]="isEnforcementEnabled() ? '#d4edda' : '#f8d7da'"
+            [style.color]="isEnforcementEnabled() ? '#155724' : '#721c24'"
+            style="padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; border: 1px solid currentColor;">
+            POLICIES: {{ isEnforcementEnabled() ? 'ACTIVE' : 'BYPASSED' }}
+          </span>
+          <span [style.background]="isLoggedIn() ? '#cce5ff' : '#e2e3e5'"
+            [style.color]="isLoggedIn() ? '#004085' : '#383d41'"
+            style="padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; border: 1px solid currentColor;">
+            IDENTITY: {{ isLoggedIn() ? 'AUTHENTICATED' : 'ANONYMOUS' }}
+          </span>
+        </div>
+      </div>
+
+      <div
+        style="display: flex; align-items: center; gap: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+        <button (click)="toggleLogin()" [style.background]="isLoggedIn() ? '#e74c3c' : '#27ae60'"
+          style="color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">
+          {{ isLoggedIn() ? 'Logout (Clear Context)' : 'Simulate Login (Add Context)' }}
+        </button>
+        <p style="margin: 0; font-size: 0.9rem; color: #6c757d;">
+          Current Payload: <code
+            style="background: #eee; padding: 2px 5px; border-radius: 3px;">{{ '{' }} "user.authenticated": "{{ isLoggedIn() }}" {{ '}' }}</code>
+        </p>
+      </div>
+    </div>
+
+    <div style="background: #ecf0f1; padding: 15px; margin-bottom: 20px; border-radius: 4px; display: none;">
+      <h3>Debug Flags</h3>
       <pre>{{ flags | json }}</pre>
     </div>
 

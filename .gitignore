@@ -29,7 +29,7 @@ yarn-error.log*
 package-lock.json
 
 # Java / Maven
-target/
+**/target/**
 *.class
 
 # Angular
@@ -37,3 +37,9 @@ target/
 
 # Vite
 dashboard-ui/dist/
+
+# OPA
+opa_tool
+opa_tool.exe
+*.log
+

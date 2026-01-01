@@ -1,0 +1,6 @@
+{
+  "input": {
+    "user": { "authenticated": true },
+    "mfeName": "remote-profile"
+  }
+}

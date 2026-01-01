@@ -1,37 +1,82 @@
-<div class="card full-width">
-    <div class="header-row">
-        <h2>Microfrontend Deployments</h2>
-        <button class="refresh-btn">Refresh</button>
+<div class="deployment-container">
+    <div class="px-8 py-4 border-b flex items-center justify-between bg-slate-50/50">
+        <div class="flex items-center gap-3">
+            <mat-icon class="text-blue-600 scale-75">cloud_queue</mat-icon>
+            <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Global Deployment
+                Registry</span>
+        </div>
+        <button mat-button class="text-[10px] font-black uppercase text-slate-400 hover:text-blue-600 tracking-tighter">
+            <mat-icon class="scale-50 mr-1">sync</mat-icon> Refresh Cluster
+        </button>
     </div>
 
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Feature Group</th>
-                    <th>Active Version</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr *ngFor="let mfe of deployments()">
-                    <td class="name-cell">{{ mfe.name }}</td>
-                    <td><span class="badge">{{ mfe.type }}</span></td>
-                    <td>{{ mfe.group }}</td>
-                    <td><span class="version-cell">{{ mfe.activeVersion }}</span></td>
-                    <td>
-                        <span class="badge" [ngClass]="{
-                            'success': mfe.status === 'HEALTHY',
-                            'warning': mfe.status === 'DEGRADED',
-                            'error': mfe.status === 'DOWN'
-                        }">
-                            {{ mfe.status }}
-                        </span>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+    <table mat-table [dataSource]="deployments() || []" class="w-full">
+        <!-- Name Column -->
+        <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef class="px-8">Identifier</th>
+            <td mat-cell *matCellDef="let d" class="px-8">
+                <div class="flex flex-col">
+                    <span class="font-bold text-slate-900 tracking-tight">{{ d.name }}</span>
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ d.type }}</span>
+                </div>
+            </td>
+        </ng-container>
+
+        <!-- Type Column -->
+        <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef class="px-8">Environment</th>
+            <td mat-cell *matCellDef="let d" class="px-8">
+                <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">{{ d.context
+                    }}</span>
+            </td>
+        </ng-container>
+
+        <!-- Group Column -->
+        <ng-container matColumnDef="group">
+            <th mat-header-cell *matHeaderCellDef class="px-8">Domain</th>
+            <td mat-cell *matCellDef="let d" class="px-8 text-slate-500 font-medium">{{ d.group }}</td>
+        </ng-container>
+
+        <!-- Version Column -->
+        <ng-container matColumnDef="activeVersion">
+            <th mat-header-cell *matHeaderCellDef class="px-8">Active Build</th>
+            <td mat-cell *matCellDef="let d" class="px-8">
+                <code
+                    class="text-[11px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100/50">v{{ d.activeVersion }}</code>
+            </td>
+        </ng-container>
+
+        <!-- Status Column -->
+        <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef class="px-8 text-center">Health</th>
+            <td mat-cell *matCellDef="let d" class="px-8 text-center">
+                <div class="badge px-4 py-1.5 border" [class.bg-emerald-50]="d.status === 'HEALTHY'"
+                    [class.text-emerald-700]="d.status === 'HEALTHY'"
+                    [class.border-emerald-100]="d.status === 'HEALTHY'">
+                    <span class="badge-dot" [class.bg-emerald-500]="d.status === 'HEALTHY'"></span>
+                    {{ d.status }}
+                </div>
+            </td>
+        </ng-container>
+
+        <!-- Actions Column -->
+        <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="px-8 text-right">Ops</th>
+            <td mat-cell *matCellDef="let d" class="px-8 text-right">
+                <button mat-icon-button class="text-slate-400 hover:text-blue-600 transition-all">
+                    <mat-icon class="scale-75">settings</mat-icon>
+                </button>
+            </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+
+    <!-- Empty State -->
+    <div *ngIf="!deployments() || deployments()?.length === 0"
+        class="p-20 flex flex-col items-center justify-center opacity-40">
+        <mat-icon class="scale-[2] mb-6 text-slate-300">hub</mat-icon>
+        <span class="text-xs font-black uppercase tracking-widest">No active clusters detected</span>
     </div>
 </div>

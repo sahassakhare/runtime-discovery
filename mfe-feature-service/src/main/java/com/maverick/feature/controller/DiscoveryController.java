@@ -38,6 +38,7 @@ public class DiscoveryController {
     private final FF4j ff4j;
     private final OpenFeatureAPI openFeatureAPI;
     private final com.maverick.feature.service.GovernanceService governanceService; // Injected
+    private final com.maverick.feature.config.MfeProperties mfeProperties; // Injected Configuration
 
     private final List<ClientEmitter> emitters = new CopyOnWriteArrayList<>();
 
@@ -296,34 +297,101 @@ public class DiscoveryController {
         }
 
         // 2.3 GOVERNANCE CHECK (Battle-Tested Policy Engine)
-        // Construct Policy Input
-        java.util.List<String> userRoles = new java.util.ArrayList<>();
-        if (Boolean.TRUE.equals(flags.get("user.admin")))
-            userRoles.add("ADMIN"); // Simulated from flags/context
+        // Construct Policy Input with Rich Telemetry - Dynamic Extraction from
+        // Configuration
 
-        boolean isInternalUser = true; // Default internal
-        if (request.getContext() != null && request.getContext().containsKey("user.internal")) {
-            isInternalUser = Boolean.parseBoolean(String.valueOf(request.getContext().get("user.internal")));
+        com.maverick.feature.config.MfeProperties.ContextConfig ctxConfig = mfeProperties.getContext();
+
+        // 1. User Roles
+        java.util.List<String> userRoles = extractRoles(
+                request.getContext() != null ? request.getContext() : java.util.Collections.emptyMap(),
+                ctxConfig.getKeys().getRoles());
+
+        // Legacy support: add ADMIN if flag is set (optional)
+        if (Boolean.TRUE.equals(flags.get("user.admin"))) {
+            if (!userRoles.contains("ADMIN"))
+                userRoles.add("ADMIN");
         }
+
+        // 2. Department
+        String department = extractString(
+                request.getContext() != null ? request.getContext() : java.util.Collections.emptyMap(),
+                ctxConfig.getKeys().getDepartment(), ctxConfig.getDefaults().getDepartment());
+
+        // 3. Internal User
+        boolean isInternalUser = extractBoolean(
+                request.getContext() != null ? request.getContext() : java.util.Collections.emptyMap(),
+                ctxConfig.getKeys().getInternal(), ctxConfig.getDefaults().isInternal());
+
+        // 4. Authenticated
+        boolean isAuthenticated = extractBoolean(
+                request.getContext() != null ? request.getContext() : java.util.Collections.emptyMap(),
+                ctxConfig.getKeys().getAuthenticated(), ctxConfig.getDefaults().isAuthenticated());
+
+        // 5. User ID
+        String userId = extractString(
+                request.getContext() != null ? request.getContext() : java.util.Collections.emptyMap(),
+                ctxConfig.getKeys().getUserId(), ctxConfig.getDefaults().getUserId());
+
+        // Fetch available versions for discovery checks
+        List<String> availableVersions = mfeRepository.findByName(remoteName).map(Microfrontend::getVersions)
+                .map(vers -> vers.stream().map(Version::getVersion).toList())
+                .orElse(java.util.Collections.emptyList());
 
         com.maverick.feature.dto.governance.PolicyInput policyInput = com.maverick.feature.dto.governance.PolicyInput
                 .builder()
                 .mfeName(remoteName)
                 .environment(env.name())
-                .channel(activeVariant != null ? activeVariant.getName().toLowerCase() : "standard")
+                .env(env.name().toLowerCase()) // Match Rego input.env
+                .channel(activeVariant != null ? activeVariant.getName().toLowerCase() : "stable")
                 .version(selectedVersion.getVersion())
+                .selectedVersion(selectedVersion.getVersion())
+                .remoteEntry(selectedVersion.getRemoteEntry())
+                .exposedModule("./Module") // Default for MFEs
+                .fallback(fallbackVersion.getVersion())
+                .route(request.getContext() != null ? String.valueOf(request.getContext().getOrDefault("route", "/"))
+                        : "/")
                 .user(com.maverick.feature.dto.governance.PolicyInput.UserContext.builder()
-                        .userId("simulated-user") // In real app, from SecurityContext
+                        .userId(userId)
                         .roles(userRoles)
                         .isInternal(isInternalUser)
+                        .department(department)
+                        .authenticated(isAuthenticated)
                         .build())
                 .features(convertRef(flags))
+                .availableVersions(availableVersions)
+                .metrics(Map.of("errorRate", 0.02, "p95LoadMs", 450.0)) // Telemetry usually comes from Monitoring, not
+                                                                        // Client Request
+                .requires(Map.of("angular", "17.0.0", "rxjs", "7.8.0")) // Simulated Manifest
+                .host(Map.of("angular", "17.0.0", "rxjs", "7.8.0")) // Host Runtime
+                .designTokens(Map.of("version", "2.1.0"))
+                .accessibility(Map.of("wcag", "2.1"))
                 .build();
 
-        com.maverick.feature.dto.governance.GovernanceResult governanceResult = governanceService.evaluate(policyInput);
+        com.maverick.feature.dto.governance.GovernanceResult governanceResult;
+        boolean isEnforcementEnabled = ff4j.check("governance.enforcement");
+
+        if (isEnforcementEnabled) {
+            governanceResult = governanceService.evaluate(policyInput);
+        } else {
+            log.info("GOVERNANCE BYPASS: Enforcement is disabled via Global Toggle.");
+            governanceResult = com.maverick.feature.dto.governance.GovernanceResult.builder()
+                    .allowed(true)
+                    .rejectionReason(null)
+                    .shouldBlock(false)
+                    .build();
+        }
 
         if (!governanceResult.isAllowed()) {
             log.warn("GOVERNANCE DENIAL: {} - Reason: {}", remoteName, governanceResult.getRejectionReason());
+
+            // "Production Hard Block" check
+            if (governanceResult.isShouldBlock()) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.FORBIDDEN,
+                        "Access Denied: " + governanceResult.getRejectionReason());
+            }
+
             // Enforce Fallback (or 403 if critical)
             // Here we choose safe fallback to Standard/Production version
             selectedVersion = fallbackVersion;
@@ -371,5 +439,37 @@ public class DiscoveryController {
                 res.put(k, (Boolean) v);
         });
         return res;
+    }
+
+    // --- Context Extraction Helpers (Production Grade) ---
+
+    private String extractString(Map<String, Object> context, String key, String defaultValue) {
+        if (!context.containsKey(key))
+            return defaultValue;
+        return String.valueOf(context.get(key));
+    }
+
+    private boolean extractBoolean(Map<String, Object> context, String key, boolean defaultValue) {
+        if (!context.containsKey(key))
+            return defaultValue;
+        Object val = context.get(key);
+        if (val instanceof Boolean)
+            return (Boolean) val;
+        return "true".equalsIgnoreCase(String.valueOf(val));
+    }
+
+    private List<String> extractRoles(Map<String, Object> context, String key) {
+        List<String> roles = new java.util.ArrayList<>();
+        if (context.containsKey(key)) {
+            Object obj = context.get(key);
+            if (obj instanceof List<?>) {
+                for (Object item : (List<?>) obj) {
+                    roles.add(String.valueOf(item));
+                }
+            } else if (obj instanceof String) {
+                roles.add((String) obj);
+            }
+        }
+        return roles;
     }
 }

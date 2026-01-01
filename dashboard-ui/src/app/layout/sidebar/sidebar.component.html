@@ -1,15 +1,19 @@
-<aside class="sidebar glass-panel">
+<div class="sidebar-wrapper">
     <div class="logo-area">
         <div class="logo-icon">M</div>
         <span class="brand-name">Maverick</span>
     </div>
 
-    <nav class="nav-menu">
-        <a *ngFor="let item of navItems" [routerLink]="item.route" routerLinkActive="active" class="nav-item">
-            <span class="material-icons-outlined icon">{{item.icon}}</span>
-            <span class="label">{{item.label}}</span>
+    <mat-nav-list class="nav-menu">
+        <a mat-list-item *ngFor="let item of navItems" [routerLink]="item.route" routerLinkActive="active-link"
+            #rla="routerLinkActive">
+            <mat-icon matListItemIcon [color]="rla.isActive ? 'primary' : ''">{{item.icon}}</mat-icon>
+            <span matListItemTitle class="nav-label">{{item.label}}</span>
         </a>
-    </nav>
+    </mat-nav-list>
+
+    <div class="spacer"></div>
+    <mat-divider></mat-divider>
 
     <div class="user-profile">
         <div class="avatar">A</div>
@@ -18,4 +22,4 @@
             <span class="role">Platform Owner</span>
         </div>
     </div>
-</aside>
+</div>

@@ -3,12 +3,14 @@ com/maverick/feature/dto/ResolutionResponse$ResolutionResponseBuilder.class
 io/openfeature/sdk/Value.class
 com/maverick/feature/controller/DiscoveryController$1.class
 com/maverick/feature/domain/Deployment.class
+com/maverick/feature/config/MfeProperties$ContextConfig$Keys.class
 io/openfeature/sdk/Metadata.class
 com/maverick/feature/dto/ResolutionResponse.class
 com/maverick/feature/service/policy/strategies/SecurityPolicy.class
 com/maverick/feature/domain/Microfrontend.class
 com/maverick/feature/service/policy/strategies/EnvironmentIntegrityPolicy.class
 com/maverick/feature/repository/DeploymentRepository.class
+com/maverick/feature/config/MfeProperties$ContextConfig$Defaults.class
 com/maverick/feature/controller/PolicyController.class
 com/maverick/feature/dto/governance/PolicyInput.class
 com/maverick/feature/repository/MicrofrontendRepository.class
@@ -23,6 +25,7 @@ com/maverick/feature/dto/RegisterInstanceRequest.class
 com/maverick/feature/domain/FeatureContextKeys.class
 com/maverick/feature/dto/ResolutionResponse$ResolutionContext.class
 io/openfeature/sdk/ProviderEvaluation$ProviderEvaluationBuilder.class
+com/maverick/feature/service/policy/strategies/OPAGovernancePolicy.class
 com/maverick/feature/domain/Version.class
 com/maverick/feature/dto/governance/GovernanceResult$GovernanceResultBuilder.class
 com/maverick/feature/dto/RegisterMfeRequest.class
@@ -44,6 +47,7 @@ com/maverick/feature/repository/VersionRepository.class
 com/maverick/feature/config/FF4jConfig.class
 com/maverick/feature/controller/FeatureController.class
 com/maverick/feature/repository/PolicyRepository.class
+com/maverick/feature/service/GovernancePolicySyncService.class
 com/maverick/feature/config/FF4jOpenFeatureProvider.class
 com/maverick/feature/domain/VariantType.class
 io/openfeature/sdk/Client.class
@@ -62,6 +66,7 @@ io/openfeature/sdk/OpenFeatureAPI.class
 com/maverick/feature/dto/ResolutionResponse$ResolutionContext$ResolutionContextBuilder.class
 com/maverick/feature/controller/RegistryController.class
 com/maverick/feature/controller/DiscoveryController.class
+com/maverick/feature/config/MfeProperties$ContextConfig.class
 com/maverick/feature/service/GovernanceService$1.class
 com/maverick/feature/service/GovernanceService.class
 io/openfeature/sdk/FeatureProvider.class

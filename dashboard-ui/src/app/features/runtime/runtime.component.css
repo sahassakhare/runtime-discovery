@@ -46,6 +46,94 @@
     }
 }
 
+.runtime-table-container {
+    width: 100%;
+}
+
+.maverick-runtime-table {
+    width: 100%;
+    background: transparent !important;
+}
+
+.mat-mdc-header-cell {
+    color: var(--slate-500) !important;
+    font-weight: 700 !important;
+    font-size: 0.6875rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.125em;
+    padding: 16px 20px !important;
+}
+
+.mat-mdc-cell {
+    padding: 16px 20px !important;
+    border-bottom: 1px solid var(--slate-50) !important;
+}
+
+.mfe-name {
+    font-weight: 700;
+    color: var(--slate-900);
+    font-size: 0.8125rem;
+    letter-spacing: -0.01em;
+}
+
+.skew-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.skew-cell mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.skew-cell.skewed {
+    color: var(--warning);
+}
+
+.error-rate-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 120px;
+}
+
+.error-value {
+    font-size: 0.75rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--slate-700);
+}
+
+.error-mini-bar {
+    height: 4px !important;
+    border-radius: 2px;
+}
+
+.latency-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 0.75rem;
+    color: var(--slate-700);
+    background: var(--slate-50);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.latency-value.slow {
+    color: var(--error);
+    background: #fef2f2;
+}
+
+.status-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
 .metrics-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -76,8 +164,7 @@
 
 .mfe-name {
     font-weight: 600;
-    font-size: 1.1rem;
-    color: var(--text-primary);
+    color: #1e293b;
 }
 
 .latency-badge {

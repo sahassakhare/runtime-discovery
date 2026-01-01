@@ -1,7 +1,7 @@
 import { ApplicationConfig } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
-import { provideDiscovery } from '@maverick/runtime-discovery';
+import { provideDiscovery } from '../../../../src/runtime-discovery/provide-discovery';
 
 export const appConfig: ApplicationConfig = {
   providers: [

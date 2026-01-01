@@ -3,6 +3,13 @@ import { loadRemoteWithSri } from './sri-loader';
 import { RuntimeDiscovery, ResolveRemoteResponse } from './types';
 
 /**
+ * Interface for live monitoring services to avoid circular dependency
+ */
+export interface MonitoringService {
+  monitor(remoteName: string): void;
+}
+
+/**
  * Client for interacting with remote modules.
  * Orchestrates resolution, integrity checking, and module loading.
  */
@@ -18,8 +25,12 @@ export class RemoteClient {
    * Creates an instance of RemoteClient.
    *
    * @param discovery - The RuntimeDiscovery implementation to resolve remotes.
+   * @param monitoring - Optional monitoring service for live updates.
    */
-  constructor(private discovery: RuntimeDiscovery) { }
+  constructor(
+    private discovery: RuntimeDiscovery,
+    private monitoring?: MonitoringService
+  ) { }
 
   /**
    * Loads a specific exposed module from a remote.
@@ -43,6 +54,11 @@ export class RemoteClient {
     console.debug(`[Maverick] Starting resolution for ${remoteName}...`);
     const resolved: ResolveRemoteResponse =
       await this.discovery.resolveRemote(remoteName, context);
+
+    // Register for live monitoring if service is available
+    if (this.monitoring) {
+      this.monitoring.monitor(remoteName);
+    }
 
     // Telemetry: Record if a specific variant was loaded
     if (resolved.resolutionContext?.variant) {

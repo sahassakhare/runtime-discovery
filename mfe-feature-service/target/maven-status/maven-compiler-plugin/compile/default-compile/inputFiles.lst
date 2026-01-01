@@ -32,9 +32,11 @@
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/repository/RuntimeInstanceRepository.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/repository/TenantRepository.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/repository/VersionRepository.java
+/Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/GovernancePolicySyncService.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/GovernanceService.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/policy/GovernancePolicy.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/policy/strategies/CompatibilityPolicy.java
+/Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/policy/strategies/EmbeddedOPAGovernancePolicy.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/policy/strategies/EnvironmentIntegrityPolicy.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/policy/strategies/OPAGovernancePolicy.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/policy/strategies/OperationalPolicy.java

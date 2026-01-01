@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy, signal, computed, inject } from '@angular/core';
 import { HttpRuntimeDiscovery } from './runtime-discovery';
-import { DISCOVERY_CONFIG } from './tokens';
+import { DISCOVERY_CONFIG, CONTEXT_PROVIDER } from './tokens';
 import { DiscoveryConfig, ResolveRemoteResponse } from './types';
 import { interval, Subscription, switchMap, retry, catchError, of } from 'rxjs';
 
@@ -20,6 +20,7 @@ export class LiveDiscoveryService implements OnDestroy {
     // Dedicated discovery client for polling
     private discoveryClient: HttpRuntimeDiscovery;
     private config = inject(DISCOVERY_CONFIG);
+    private contextProvider = inject(CONTEXT_PROVIDER, { optional: true }); // Dynamic Context source
 
     constructor() {
         this.discoveryClient = new HttpRuntimeDiscovery(this.config.url, this.config.environment, this.config.appName, this.config.tenantId);
@@ -74,8 +75,11 @@ export class LiveDiscoveryService implements OnDestroy {
         });
     }
 
-    private refreshAll() {
-        console.log('[LiveDiscovery] Refreshing all monitored remotes...');
+    /**
+     * Triggers a manual refresh of all monitored configurations.
+     */
+    refreshAll() {
+        console.log('[LiveDiscovery] Refreshing all monitored remotes with current context...');
         this.monitoredRemotes.forEach(remote => {
             this.pollRemote(remote).then(config => {
                 if (config) this.updateConfigIfChanged(remote, config);
@@ -92,7 +96,9 @@ export class LiveDiscoveryService implements OnDestroy {
 
     private async pollRemote(remoteName: string): Promise<ResolveRemoteResponse | null> {
         try {
-            return await this.discoveryClient.resolveRemote(remoteName);
+            // Pass the current simulated context from provider if available
+            const context = this.contextProvider ? this.contextProvider() : {};
+            return await this.discoveryClient.resolveRemote(remoteName, context);
         } catch (e) {
             return null;
         }
@@ -119,7 +125,10 @@ export class LiveDiscoveryService implements OnDestroy {
         const currentFlags = JSON.stringify(currentConfig.resolutionContext?.flags || {});
         const newFlags = JSON.stringify(newConfig.resolutionContext?.flags || {});
 
-        if (currentVersion !== newVersion || currentEntry !== newEntry || currentFlags !== newFlags) {
+        const currentReason = currentConfig.resolutionContext?.governanceReason;
+        const newReason = newConfig.resolutionContext?.governanceReason;
+
+        if (currentVersion !== newVersion || currentEntry !== newEntry || currentFlags !== newFlags || currentReason !== newReason) {
             console.log(`[LiveDiscovery] Update detected for ${remoteName}: ${currentVersion} (Flags: ${newFlags})`);
             const newMap = new Map(currentMap);
             newMap.set(remoteName, newConfig);

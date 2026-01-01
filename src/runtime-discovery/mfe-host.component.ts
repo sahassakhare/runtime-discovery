@@ -1,7 +1,7 @@
 import { Component, Input, OnInit, OnChanges, ViewContainerRef, ViewChild, OnDestroy, SimpleChanges, effect, Injector, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LiveDiscoveryService } from './live-discovery.service';
-import { REMOTE_CLIENT } from './tokens';
+import { REMOTE_CLIENT, CONTEXT_PROVIDER } from './tokens';
 import { RemoteClient } from './remote-client';
 
 @Component({
@@ -23,6 +23,7 @@ export class MfeHostComponent implements OnInit, OnChanges, OnDestroy {
 
     private liveDiscovery = inject(LiveDiscoveryService);
     private remoteClient = inject(REMOTE_CLIENT);
+    private contextProvider = inject(CONTEXT_PROVIDER, { optional: true });
     private injector = inject(Injector);
 
     constructor() {
@@ -75,7 +76,11 @@ export class MfeHostComponent implements OnInit, OnChanges, OnDestroy {
             const module = await this.remoteClient.loadRemoteModule<any>(
                 this.remoteName,
                 this.exposedModule,
-                { type: 'module', retries: 1 }
+                {
+                    type: 'module',
+                    retries: 1,
+                    context: this.contextProvider ? this.contextProvider() : {}
+                }
             );
 
             const ComponentType = module.default || Object.values(module)[0];

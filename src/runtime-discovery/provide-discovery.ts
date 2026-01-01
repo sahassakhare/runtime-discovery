@@ -1,4 +1,4 @@
-import { EnvironmentProviders, makeEnvironmentProviders, ENVIRONMENT_INITIALIZER } from '@angular/core';
+import { EnvironmentProviders, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import { HttpRuntimeDiscovery, registerApplication } from './runtime-discovery';
 import { RemoteClient } from './remote-client';
 import { DiscoveryConfig } from './types';
@@ -23,10 +23,6 @@ export function provideDiscovery(config: DiscoveryConfig): EnvironmentProviders 
                 return new RemoteClient(discovery);
             }
         },
-        {
-            provide: ENVIRONMENT_INITIALIZER,
-            multi: true,
-            useValue: () => registerApplication(config)
-        }
+        provideAppInitializer(() => registerApplication(config))
     ]);
 }

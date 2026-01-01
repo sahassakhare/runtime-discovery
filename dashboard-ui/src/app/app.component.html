@@ -1,19 +1,27 @@
-<div class="app-layout">
-  <app-sidebar></app-sidebar>
+<mat-sidenav-container class="app-container">
+  <mat-sidenav mode="side" opened class="sidebar-sidenav">
+    <app-sidebar></app-sidebar>
+  </mat-sidenav>
 
-  <main class="main-content">
-    <header class="top-bar">
-      <div>
-        <h1>Mission Control</h1>
-        <p class="text-sec">Overview of your microfrontend ecosystem</p>
+  <mat-sidenav-content class="main-content">
+    <mat-toolbar class="top-toolbar">
+      <div class="toolbar-content">
+        <div class="header-titles">
+          <span class="main-title">Mission Control</span>
+          <span class="sub-title">Microfrontend Registry & Orchestration Pulse</span>
+        </div>
+        <span class="spacer"></span>
+        <div class="operation-pill">
+          <span class="pulse-dot"></span>
+          <span class="pill-text">Systems Operational</span>
+          <span class="pill-divider"></span>
+          <span class="pill-meta">v4.2.0-STABLE</span>
+        </div>
       </div>
-      <div class="controls">
-        <span class="badge success animate-entry">● System Operational</span>
-      </div>
-    </header>
+    </mat-toolbar>
 
-    <div class="content-container animate-entry">
+    <div class="page-container">
       <router-outlet></router-outlet>
     </div>
-  </main>
-</div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

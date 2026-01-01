@@ -1,47 +1,47 @@
-.sidebar {
-    width: var(--sidebar-width);
-    height: calc(100vh - 2rem);
-    display: flex;
-    flex-direction: column;
-    padding: 1.5rem;
-    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-    background: var(--bg-panel);
-    border-right: 1px solid var(--border-subtle);
-    /* Slightly more opaque */
+:host {
+    display: block;
+    height: 100%;
 }
 
 /* Logo */
+.sidebar-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
 .logo-area {
+    padding: 24px;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 3rem;
-    padding-left: 0.5rem;
+    gap: 12px;
 }
 
 .logo-icon {
     width: 32px;
     height: 32px;
-    background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+    background: var(--primary-gradient);
     border-radius: 8px;
-    display: grid;
-    place-items: center;
-    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: white;
+    font-weight: 800;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .brand-name {
-    font-weight: 700;
-    font-size: 1.1rem;
-    letter-spacing: -0.02em;
+    font-size: 1.25rem;
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--slate-900);
 }
 
 /* Nav */
 .nav-menu {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
     flex: 1;
+    padding-top: 8px !important;
 }
 
 .nav-item {
@@ -68,29 +68,59 @@
     font-weight: 500;
 }
 
+.active-link {
+    background: rgba(37, 99, 235, 0.04) !important;
+    color: var(--primary) !important;
+    position: relative;
+}
+
+.active-link::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 4px;
+    background: var(--primary);
+    border-radius: 0 4px 4px 0;
+}
+
+.nav-label {
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: -0.01em;
+}
+
+.spacer {
+    flex: 1;
+}
+
 .icon {
     font-size: 1.25rem;
 }
 
 /* User profile */
 .user-profile {
+    padding: 24px;
+    margin: 16px;
+    background: var(--slate-50);
+    border-radius: 12px;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border-subtle);
+    gap: 12px;
 }
 
 .avatar {
     width: 36px;
     height: 36px;
-    border-radius: 50%;
-    background: var(--bg-panel);
-    border: 1px solid var(--border-subtle);
-    display: grid;
-    place-items: center;
-    font-weight: 600;
-    color: var(--text-tertiary);
+    background: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--primary);
+    box-shadow: var(--s-shadow-sm);
 }
 
 .user-info {
@@ -99,11 +129,15 @@
 }
 
 .name {
-    font-size: 0.9rem;
-    font-weight: 500;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--slate-900);
 }
 
 .role {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--slate-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }

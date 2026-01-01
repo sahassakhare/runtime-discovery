@@ -1,5 +1,14 @@
 server:
   port: 8081
+  error:
+    include-message: always
+    include-binding-errors: always
+
+logging:
+  level:
+    root: INFO
+    com.maverick.feature: DEBUG
+    org.springframework.web: DEBUG
 
 spring:
   application:
@@ -33,11 +42,6 @@ management:
     env:
       enabled: true
 
-logging:
-  level:
-    org.springframework.web: DEBUG
-    org.springframework.security: DEBUG
-    org.togglz: DEBUG
 
 springdoc:
   api-docs:
@@ -60,3 +64,20 @@ mfe:
       name: Acme Corp
     - id: beta-users
       name: Beta Testers Group
+  context:
+    keys:
+      roles: user.roles
+      department: user.department
+      internal: user.internal
+      authenticated: user.authenticated
+      userId: user.id
+    defaults:
+      department: UNASSIGNED
+      internal: false
+      authenticated: false
+      userId: anonymous
+  governance:
+    opa:
+      mode: embedded # Options: sidecar, embedded
+      baseUrl: http://localhost:8181/v1/data
+      binaryPath: /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/opa

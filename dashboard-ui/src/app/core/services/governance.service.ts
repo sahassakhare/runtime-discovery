@@ -9,6 +9,8 @@ export interface PolicyDefinition {
     description: string;
     enforcementLevel: string;
     type: string;
+    configuration: string;
+    active: boolean;
 }
 
 @Injectable({
@@ -32,7 +34,19 @@ export class GovernanceService {
         return this.http.post<boolean>(`${this.apiUrl}/features/${uid}/toggle`, {});
     }
 
-    updatePolicy(id: string, updates: { enforcementLevel?: string, description?: string }): Observable<void> {
+    togglePolicy(id: string, active: boolean): Observable<void> {
+        return this.http.patch<void>(`${this.apiUrl}/policies/${id}/toggle?active=${active}`, {});
+    }
+
+    toggleAllPolicies(active: boolean): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/policies/toggle-all?active=${active}`, {});
+    }
+
+    toggleAllFeatures(active: boolean): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/features/toggle-all?active=${active}`, {});
+    }
+
+    updatePolicy(id: string, updates: { enforcementLevel?: string, description?: string, configuration?: string }): Observable<void> {
         return this.http.put<void>(`${this.apiUrl}/policies/${id}`, updates);
     }
 

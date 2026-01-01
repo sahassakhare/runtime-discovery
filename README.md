@@ -26,11 +26,78 @@ A robust, framework-agnostic client for resolving, loading, and hot-swapping mic
 *   **Canary Releases**: Route traffic to new versions based on percentage weights or user context.
 *   **Dark Launches**: Deploy code silently and toggle visibility via feature flags (`profile.new-ui`).
 
-###  Governance & Policy Mesh (Active Enforcement)
-*   **Multi-Level Enforcement**: Policies support `BLOCK` (Hard Denial), `AUDIT` (Log only), and `ALLOW` (Priority Permit).
-*   **OPA (Open Policy Agent) Native**: Delegated complex logic to external OPA sidecars using native **Rego** support.
-*   **Runtime Guardrails**: Real-time evaluation of Environment Integrity, Security ABAC, and Version Compatibility.
-*   **Professional Side-Drawer UX**: Executive dashboard for policy management with real-time metrics and search.
+###  Governance & Policy Mesh (Dual-Mode Architecture) 🛡️
+
+The platform features a sophisticated **Hybrid Policy Engine** that can operate in two distinct modes, configurable via `application.yml`.
+
+#### 1. Architecture: Database + Classpath Hybrid
+*   **Database (The Catalog)**: Stores policy metadata (ID, Type, Active Status). Acts as the global "On/Off" switch.
+*   **Classpath (The Logic)**: Stores immutable, pre-compiled WASM binaries (`policies/POL-MFE-XX.wasm`) inside the application JAR.
+
+This ensures **Production Stability** (logic is versioned with the release) while maintaining **Runtime Agility** (instant toggle of active policies).
+
+#### 2. Modes of Operation
+| Mode | Description | Use Case |
+| :--- | :--- | :--- |
+| **Embedded (Recommended)** | Runs policies in-process using ASM/WASM. Zero network latency, no external binary required. | Production, High-Performance scaling. |
+| **Sidecar** | Offloads evaluation to a local OPA server (`:8181`). Allows hot-reloading of `.rego` files without builds. | Local Development, Policy debugging. |
+
+#### 3. Policy Context Integration (The Payload)
+To enforce policies effectively, the client sends a rich `context` object in the payload. This maps directly to `input` variables in Rego policies.
+
+**Client Request (`api/resolve`):**
+```json
+{
+  "remoteName": "remote-profile",
+  "appName": "shell",
+  "context": {
+    "user.authenticated": true,
+    "user.roles": ["ADMIN", "USER"],
+    "user.id": "internal-user",
+    "user.internal": true,
+    "user.department": "FINANCE",
+    "feature.new-ui": true
+  }
+}
+```
+
+**Rego Policy Example (`policies/mfe/access.rego`):**
+```rego
+package mfe.access
+
+default allow = false
+
+# Rule: Allow if user is authenticated
+allow {
+  input.user.authenticated == true
+}
+
+# Rule: Allow specific department for sensitive MFEs
+allow {
+  input.mfeName == "remote-audit"
+  input.user.department == "FINANCE"
+}
+```
+
+#### 4. Policy Development Workflow
+
+**A. Developing Policies**
+1.  Edit `.rego` files in `mfe-feature-service/policies/mfe/`.
+2.  (Optional) Run Sidecar mode for instant feedback.
+
+**B. Compiling for Production (Embedded Mode)**
+The Embedded mode requires `.wasm` binaries. Use the provided cross-platform scripts to compile them into `src/main/resources/policies`.
+
+*   **macOS/Linux**: `./compile_policies.sh`
+*   **Windows**: `compile_policies.bat`
+
+This process:
+1.  Downloads OPA binary (if missing).
+2.  Compiles individual policies (access, discovery, etc.).
+3.  Bundles ALL policies into the unified decision policy (`POL-MFE-09`).
+4.  Places artifacts in the classpath resource folder (`src/main/resources/policies`) for packaging.
+
+---
 
 ###  Resilience & Fallback
 *   **Automatic Failover**: If a primary version (e.g., Canary) fails to load (404/Network Error), the client automatically falls back to a stable version.
@@ -174,12 +241,39 @@ The client supports sophisticated deployment strategies driven by the backend:
 | **Blue/Green** | Instant environment switch. | Toggling the active Deployment version. |
 | **Tenant Specific** | Custom version for a specific tenant. | Tenant ID match in `Deployment` table. |
 
+---
+
+##  Governance Portal & Active Enforcement 🛡️
+
+The **Maverick Discovery Platform** includes a dedicated side-drawer dashboard for real-time governance:
+
+1.  **Enforcement Grid**: View all active `REGO_OPA` and `Operational` policies.
+2.  **Live Toggles**: Enable or disable any policy on-the-fly via the UI.
+3.  **Fail-Open Mode**: If a policy is deactivated, the discovery service automatically skips evaluation for that protocol, ensuring high availability during maintenance.
+4.  **Real-Time Metrics**: Monitor version skew, error rates, and governance compliance scores directly from the [Overview Dashboard](http://localhost:4203/overview).
+
+---
+
+##  Local Development & Orchestration 🌐
+
+To run the full ecosystem locally, ensure the following ports are available:
+
+| Port | Component | Role |
+| :--- | :--- | :--- |
+| **4200** | [MFE Shell](http://localhost:4200) | Primary MFE Container. |
+| **4201** | [Remote Profile](http://localhost:4201) | Mock Microfrontend (Target). |
+| **4203** | [Dashboard UI](http://localhost:4203) | Management & Governance Portal. |
+| **8081** | [Discovery Server](http://localhost:8081) | Java/Spring Boot API. |
+| **8181** | [OPA Server](http://localhost:8181) | Rego Policy Engine (Sidecar Mode). |
+
+---
+
 ## Development
 
 ```bash
-# Build
+# Build the core library
 npm run build
 
-# Test
-npm test
+# Start the full ecosystem (Root)
+npm start
 ```

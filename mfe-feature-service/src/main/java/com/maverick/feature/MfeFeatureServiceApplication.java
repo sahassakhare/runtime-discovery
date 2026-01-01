@@ -6,7 +6,10 @@ import org.springframework.context.annotation.Configuration;
 
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
-@SpringBootApplication
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
+
+@SpringBootApplication(exclude = { SecurityAutoConfiguration.class, UserDetailsServiceAutoConfiguration.class })
 @EnableJpaAuditing
 @org.springframework.scheduling.annotation.EnableScheduling
 @org.springframework.boot.context.properties.EnableConfigurationProperties(com.maverick.feature.config.MfeProperties.class)
