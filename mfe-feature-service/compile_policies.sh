@@ -13,12 +13,12 @@ OPA_BIN="./opa_tool"
 
 # 1. Ensure OPA is available
 if [ ! -f "$OPA_BIN" ]; then
-    echo "⬇️  Downloading OPA binary for compilation..."
+    echo "[INFO] Downloading OPA binary for compilation..."
     curl -L -o "$OPA_BIN" "$OPA_URL"
     chmod +x "$OPA_BIN"
 fi
 
-echo "✅ OPA Binary ready."
+echo "[OK] OPA Binary ready."
 
 mkdir -p "$WASM_DIR"
 
@@ -32,7 +32,7 @@ compile_policy() {
     shift 2
     local files=("$@")
 
-    echo "🔨 Compiling $name..."
+    echo "[BUILD] Compiling $name..."
     "$OPA_BIN" build -t wasm -e "$entrypoint" "${files[@]}" -o "${WASM_DIR}/${name}.tar.gz"
     
     # Extract
@@ -55,7 +55,7 @@ compile_policy "POL-MFE-08" "mfe/vetting/allow" "${POLICY_DIR}/vetting.rego"
 # 3. Compile Unified Decision Policy (POL-MFE-09)
 # This policy DEPENDS on all others (data.mfe.access.allow, etc.)
 # So we must include ALL rego files in the build command.
-echo "🔨 Compiling Unified Decision (POL-MFE-09)..."
+echo "[BUILD] Compiling Unified Decision (POL-MFE-09)..."
 
 # Construct list of all Rego files
 ALL_REGOS=( "${POLICY_DIR}"/*.rego )
@@ -65,5 +65,5 @@ tar -xzf "${WASM_DIR}/decision.tar.gz" -C "$WASM_DIR" /policy.wasm
 mv "${WASM_DIR}/policy.wasm" "${WASM_DIR}/POL-MFE-09.wasm"
 rm "${WASM_DIR}/decision.tar.gz"
 
-echo "🎉 All policies compiled to WASM successfully!"
-echo "📍 Location: $WASM_DIR"
+echo "[SUCCESS] All policies compiled to WASM successfully!"
+echo "[OUTPUT] Location: $WASM_DIR"

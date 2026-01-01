@@ -176,7 +176,7 @@ public class DataInitializer {
                                         // 9. Unified Decision
                                         createPolicy(policyRepo, "POL-MFE-09", "Unified Decision Engine",
                                                         "Orchestration",
-                                                        "🎯 Centralized decision point unifying all protocols.",
+                                                        "Centralized decision point unifying all protocols.",
                                                         "decision.rego"));
 
                         System.out.println(">>> 9 Governance Protocols Seeded successfully! <<<");

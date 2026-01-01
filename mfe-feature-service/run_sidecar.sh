@@ -13,15 +13,15 @@ PORT=8181
 
 # 1. Ensure OPA is available
 if [ ! -f "$OPA_BIN" ]; then
-    echo "⬇️  Downloading OPA binary..."
+    echo "[INFO] Downloading OPA binary..."
     curl -L -o "$OPA_BIN" "$OPA_URL"
     chmod +x "$OPA_BIN"
 fi
 
-echo "✅ OPA Binary ready."
-echo "🚀 Starting OPA Server on port $PORT..."
-echo "📂 Loading policies from: $POLICY_DIR"
-echo "ℹ️  Update application.yml to use 'mode: sidecar'"
+echo "[OK] OPA Binary ready."
+echo "[START] Starting OPA Server on port $PORT..."
+echo "[LOAD] Loading policies from: $POLICY_DIR"
+echo "[INFO] Update application.yml to use 'mode: sidecar'"
 
 # Run OPA Server
 # -s: server mode

@@ -10,14 +10,14 @@ set PORT=8181
 
 rem 1. Ensure OPA is available
 if not exist "%OPA_BIN%" (
-    echo ⬇️  Downloading OPA binary for Windows...
+    echo [INFO] Downloading OPA binary for Windows...
     curl -L -o "%OPA_BIN%" "%OPA_URL%"
 )
 
-echo ✅ OPA Binary ready.
-echo 🚀 Starting OPA Server on port %PORT%...
-echo 📂 Loading policies from: %POLICY_DIR%
-echo ℹ️  Update application.yml to use 'mode: sidecar'
+echo [OK] OPA Binary ready.
+echo [START] Starting OPA Server on port %PORT%...
+echo [LOAD] Loading policies from: %POLICY_DIR%
+echo [INFO] Update application.yml to use 'mode: sidecar'
 
 rem Run OPA Server
 rem -s: server mode
