@@ -26,7 +26,7 @@ A robust, framework-agnostic client for resolving, loading, and hot-swapping mic
 *   **Canary Releases**: Route traffic to new versions based on percentage weights or user context.
 *   **Dark Launches**: Deploy code silently and toggle visibility via feature flags (`profile.new-ui`).
 
-###  Governance & Policy Mesh (Dual-Mode Architecture) 🛡️
+###  Governance & Policy Mesh (Dual-Mode Architecture)
 
 The platform features a sophisticated **Hybrid Policy Engine** that can operate in two distinct modes, configurable via `application.yml`.
 
@@ -243,7 +243,7 @@ The client supports sophisticated deployment strategies driven by the backend:
 
 ---
 
-##  Governance Portal & Active Enforcement 🛡️
+##  Governance Portal & Active Enforcement
 
 The **Maverick Discovery Platform** includes a dedicated side-drawer dashboard for real-time governance:
 
@@ -254,7 +254,7 @@ The **Maverick Discovery Platform** includes a dedicated side-drawer dashboard f
 
 ---
 
-##  Local Development & Orchestration 🌐
+##  Local Development & Orchestration
 
 To run the full ecosystem locally, ensure the following ports are available:
 
