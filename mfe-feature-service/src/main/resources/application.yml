@@ -81,3 +81,7 @@ mfe:
       mode: embedded # Options: sidecar, embedded
       baseUrl: http://localhost:8181/v1/data
       binaryPath: /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/opa
+
+llm:
+  api-key: ${GEMINI_API_KEY:dummy-key-for-local-boot}
+  model: gemini-2.0-flash-exp

@@ -1,10 +1,21 @@
 package com.maverick.feature.controller;
 
-import com.maverick.feature.domain.Microfrontend;
-import com.maverick.feature.domain.Version;
+import com.maverick.feature.domain.MfeApplication;
+import com.maverick.feature.domain.MfeApplicationVersion;
 import com.maverick.feature.dto.RegisterMfeRequest;
-import com.maverick.feature.repository.MicrofrontendRepository;
-import com.maverick.feature.repository.VersionRepository;
+import com.maverick.feature.repository.MfeApplicationRepository;
+import com.maverick.feature.repository.MfeApplicationGroupRepository;
+import com.maverick.feature.repository.MfeApplicationVersionRepository;
+import com.maverick.feature.repository.MfeConsumedRemoteRepository;
+import com.maverick.feature.repository.MfeHealthRepository;
+import com.maverick.feature.repository.MfeDependencyRepository;
+import com.maverick.feature.repository.MfeExposedModuleRepository;
+import com.maverick.feature.domain.MfeConsumedRemote;
+import com.maverick.feature.domain.MfeHealth;
+import com.maverick.feature.domain.MfeDependency;
+import com.maverick.feature.domain.MfeExposedModule;
+import com.maverick.feature.domain.MfeMetadata;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -20,228 +31,520 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class DashboardController {
 
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DashboardController.class);
+        private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DashboardController.class);
 
-    private final MicrofrontendRepository mfeRepository;
-    private final VersionRepository versionRepository;
-    private final com.maverick.feature.repository.DeploymentRepository deploymentRepository;
-    private final com.maverick.feature.repository.RuntimeInstanceRepository runtimeRepository;
-    private final com.maverick.feature.repository.PolicyRepository policyRepository;
-    private final org.ff4j.FF4j ff4j;
+        private final MfeApplicationRepository mfeRepository;
+        private final MfeApplicationGroupRepository groupRepository; // Added this line
+        private final MfeApplicationVersionRepository versionRepository;
 
-    @GetMapping("/stats")
-    public ResponseEntity<Object> getStats() {
-        long totalMfes = mfeRepository.count();
-        long activeVersions = deploymentRepository.count(); // Active deployments
-        long deploymentsToday = deploymentRepository
-                .countByCreatedAtAfter(LocalDateTime.now().toLocalDate().atStartOfDay());
+        private final com.maverick.feature.repository.DeploymentRepository deploymentRepository;
+        private final com.maverick.feature.repository.RuntimeInstanceRepository runtimeRepository;
+        private final com.maverick.feature.repository.PolicyRepository policyRepository;
+        private final MfeConsumedRemoteRepository consumedRemoteRepository;
+        private final MfeHealthRepository healthRepository;
+        private final MfeDependencyRepository dependencyRepository;
+        private final MfeExposedModuleRepository exposedModuleRepository;
+        private final org.ff4j.FF4j ff4j;
 
-        // Synthesized Lighthouse score based on average of MFEs
-        int avgLighthouse = (int) (85 + (totalMfes > 0 ? (31 * totalMfes) % 15 : 0));
+        @GetMapping("/stats")
+        public ResponseEntity<Object> getStats() {
+                long totalMfes = mfeRepository.count();
+                long activeVersions = deploymentRepository.count(); // Active deployments
+                long deploymentsToday = deploymentRepository
+                                .countByCreatedAtAfter(LocalDateTime.now().toLocalDate().atStartOfDay());
 
-        return ResponseEntity.ok(java.util.Map.of(
-                "totalMfes", totalMfes,
-                "activeVersions", activeVersions,
-                "deploymentsToday", deploymentsToday,
-                "avgLighthouseScore", avgLighthouse));
-    }
+                // Calculate Up/Down status based on health repo
+                long upCount = 0;
+                long downCount = 0;
+                long unknownCount = 0;
 
-    @GetMapping("/health")
-    public ResponseEntity<Object> getHealth() {
-        java.util.List<java.util.Map<String, Object>> healthStatus = new java.util.ArrayList<>();
-        Iterable<com.maverick.feature.domain.RuntimeInstance> instances = runtimeRepository.findAll();
+                Iterable<com.maverick.feature.domain.Deployment> deployments = deploymentRepository.findAll();
+                for (com.maverick.feature.domain.Deployment d : deployments) {
+                        if (d.getActive()) {
+                                Optional<MfeHealth> h = healthRepository
+                                                .findByApplicationVersionId(d.getVersion().getId());
+                                if (h.isPresent()) {
+                                        if (h.get().getStatus() == 200)
+                                                upCount++;
+                                        else
+                                                downCount++;
+                                } else {
+                                        unknownCount++;
+                                }
+                        }
+                }
 
-        // Group by App Name
-        java.util.Map<String, java.util.List<com.maverick.feature.domain.RuntimeInstance>> byApp = java.util.stream.StreamSupport
-                .stream(instances.spliterator(), false)
-                .collect(java.util.stream.Collectors
-                        .groupingBy(com.maverick.feature.domain.RuntimeInstance::getAppName));
+                // Synthesized Lighthouse score based on average of MFEs
+                int avgLighthouse = (int) (85 + (totalMfes > 0 ? (31 * totalMfes) % 15 : 0));
 
-        if (byApp.isEmpty()) {
-            // Fallback if no instances detected yet (e.g., first start)
-            return ResponseEntity.ok(java.util.Collections.emptyList());
+                return ResponseEntity.ok(java.util.Map.of(
+                                "totalMfes", totalMfes,
+                                "activeVersions", activeVersions,
+                                "deploymentsToday", deploymentsToday,
+                                "avgLighthouseScore", avgLighthouse,
+                                "upCount", upCount,
+                                "downCount", downCount,
+                                "unknownCount", unknownCount));
         }
 
-        byApp.forEach((appName, list) -> {
-            boolean healthy = list.stream()
-                    .anyMatch(i -> i.getLastHeartbeat().isAfter(LocalDateTime.now().minusMinutes(5)));
-
-            healthStatus.add(java.util.Map.of(
-                    "name", appName,
-                    "status", healthy ? "HEALTHY" : "DOWN",
-                    "uptime", healthy ? "100%" : "0%" // simplified
-            ));
-        });
-
-        return ResponseEntity.ok(healthStatus);
-    }
-
-    @GetMapping("/governance")
-    @Transactional(readOnly = true)
-    public ResponseEntity<Object> getGovernance() {
-        java.util.List<java.util.Map<String, String>> checks = new java.util.ArrayList<>();
-        Iterable<Microfrontend> mfes = mfeRepository.findAll();
-
-        // 1. Check for HTTPS usage in remote entries (Production Deployments)
-        long insecureCount = 0;
-        for (Microfrontend mfe : mfes) {
-            Optional<com.maverick.feature.domain.Deployment> active = deploymentRepository
-                    .findActiveGlobal(mfe.getName(), com.maverick.feature.domain.Environment.PRODUCTION);
-            if (active.isPresent() && !active.get().getVersion().getRemoteEntry().startsWith("https")) {
-                insecureCount++;
-            }
-        }
-        checks.add(java.util.Map.of("check", "Enforce HTTPS (Prod)", "status", insecureCount == 0 ? "PASS" : "FAIL"));
-
-        // 2. Check for at least 1 active version per MFE
-        long noActiveVersionCount = 0;
-        for (Microfrontend mfe : mfes) {
-            boolean hasActive = !deploymentRepository
-                    .findActiveGlobal(mfe.getName(), com.maverick.feature.domain.Environment.PRODUCTION).isEmpty();
-            if (!hasActive)
-                noActiveVersionCount++;
-        }
-        checks.add(java.util.Map.of("check", "Active Production Version", "status",
-                noActiveVersionCount == 0 ? "PASS" : "WARN"));
-
-        // 3. SemVer Compliance Check
-        long nonSemVerCount = versionRepository.findAll().stream()
-                .filter(v -> !v.getVersion().matches("^\\d+\\.\\d+\\.\\d+(-.*)?$"))
-                .count();
-        checks.add(java.util.Map.of("check", "SemVer Compliance", "status", nonSemVerCount == 0 ? "PASS" : "WARN"));
-
-        // 4. Integrated Registry Protocol Status (Real-time DB check)
-        long activePoliciesCount = ((java.util.List<?>) policyRepository.findByIsActiveTrue()).size();
-        checks.add(java.util.Map.of("check", "Governance Active", "status", activePoliciesCount > 0 ? "PASS" : "FAIL"));
-
-        return ResponseEntity.ok(checks);
-    }
-
-    @GetMapping("/deployments")
-    @Transactional(readOnly = true)
-    public ResponseEntity<Object> getDeployments() {
-        java.util.List<Object> deployments = new java.util.ArrayList<>();
-        Iterable<Microfrontend> mfes = mfeRepository.findAll();
-
-        for (Microfrontend mfe : mfes) {
-            String activeVer = deploymentRepository
-                    .findActiveGlobal(mfe.getName(), com.maverick.feature.domain.Environment.PRODUCTION)
-                    .map(d -> d.getVersion().getVersion())
-                    .orElse("None");
-
-            deployments.add(java.util.Map.of(
-                    "id", mfe.getId(),
-                    "name", mfe.getName(),
-                    "type", mfe.getType() != null ? mfe.getType() : "Unknown",
-                    "group", mfe.getFeatureGroupName() != null ? mfe.getFeatureGroupName() : "None",
-                    "activeVersion", activeVer,
-                    "status", "HEALTHY"));
-        }
-        return ResponseEntity.ok(deployments);
-    }
-
-    @GetMapping("/resolution-graph/{remoteName}")
-    @Transactional(readOnly = true)
-    public ResponseEntity<Object> getResolutionGraph(@PathVariable String remoteName) {
-        // Simplified Logic for Enterprise Model for now
-        // Just showing Prod deployment
-        Optional<Microfrontend> mfeOpt = mfeRepository.findByName(remoteName);
-        if (mfeOpt.isEmpty())
-            return ResponseEntity.notFound().build();
-
-        java.util.List<java.util.Map<String, Object>> nodes = new java.util.ArrayList<>();
-        nodes.add(java.util.Map.of("id", "root", "label", "Shell (" + remoteName + ")", "type", "root"));
-
-        Optional<com.maverick.feature.domain.Deployment> prod = deploymentRepository.findActiveGlobal(remoteName,
-                com.maverick.feature.domain.Environment.PRODUCTION);
-
-        if (prod.isPresent()) {
-            String nodeId = "v-" + prod.get().getVersion().getId();
-            nodes.add(java.util.Map.of("id", nodeId, "label", prod.get().getVersion().getVersion() + " (Prod)", "type",
-                    "version active", "traffic", "100%"));
-            java.util.List<java.util.Map<String, Object>> edges = new java.util.ArrayList<>();
-            edges.add(java.util.Map.of("source", "root", "target", nodeId));
-            return ResponseEntity.ok(java.util.Map.of("nodes", nodes, "edges", edges));
+        @GetMapping("/mfe/{name}/env")
+        public ResponseEntity<Object> getMfeEnv(@PathVariable String name) {
+                // Mock environment properties for demo
+                return ResponseEntity.ok(java.util.Map.of(
+                                "activeProfiles", new String[] { "production", "cloud" },
+                                "propertySources", java.util.List.of(
+                                                java.util.Map.of("name", "server.ports", "properties",
+                                                                java.util.Map.of("local.server.port",
+                                                                                java.util.Map.of("value", "8080"))),
+                                                java.util.Map.of("name", "systemProperties", "properties",
+                                                                java.util.Map.of("java.runtime.version", java.util.Map
+                                                                                .of("value", "17.0.2"))))));
         }
 
-        return ResponseEntity.ok(java.util.Map.of("nodes", nodes, "edges", java.util.List.of()));
-    }
-
-    @GetMapping("/runtime")
-    @Transactional(readOnly = true)
-    public ResponseEntity<Object> getRuntime() {
-        java.util.List<Object> data = new java.util.ArrayList<>();
-        Iterable<Microfrontend> mfes = mfeRepository.findAll();
-
-        for (Microfrontend mfe : mfes) {
-            // Real Version Skew calculation: Active vs Latest version
-            Optional<com.maverick.feature.domain.Deployment> activeDep = deploymentRepository
-                    .findActiveGlobal(mfe.getName(), com.maverick.feature.domain.Environment.PRODUCTION);
-
-            String activeVer = activeDep.map(d -> d.getVersion().getVersion()).orElse("None");
-            String latestVer = versionRepository.findTopByMicrofrontendIdOrderByCreatedAtDesc(mfe.getId())
-                    .map(com.maverick.feature.domain.Version::getVersion)
-                    .orElse("None");
-
-            boolean skewed = !activeVer.equals(latestVer) && !"None".equals(activeVer);
-
-            // Simulated error rates based on version status
-            double clientError = activeVer.contains("canary") ? 0.05 : 0.01;
-            int latency = activeVer.contains("canary") ? (150 + (int) (Math.random() * 50))
-                    : (40 + (int) (Math.random() * 20));
-
-            data.add(java.util.Map.of(
-                    "mfeName", mfe.getName(),
-                    "versionSkew", skewed ? "1 Version Behind" : "Aligned",
-                    "clientErrors", String.format("%.1f%%", clientError),
-                    "serverErrors", "0.0%",
-                    "latency", latency + "ms"));
+        @GetMapping("/mfe/{name}/metrics")
+        public ResponseEntity<Object> getMfeMetrics(@PathVariable String name) {
+                // Mock metrics for demo
+                return ResponseEntity.ok(java.util.Map.of(
+                                "mem", 512 + (int) (Math.random() * 256),
+                                "mem.free", 128 + (int) (Math.random() * 64),
+                                "processors", 4,
+                                "uptime", 15000 + (long) (Math.random() * 50000),
+                                "systemload.average", 0.45,
+                                "heap.committed", 450,
+                                "heap.init", 256,
+                                "heap.used", 300 + (int) (Math.random() * 100),
+                                "threads.peak", 45,
+                                "threads.daemon", 20,
+                                "threads.totalListened", 50,
+                                "classes", 5432,
+                                "classes.loaded", 5432,
+                                "classes.unloaded", 0,
+                                "gc.ps_scavenge.count", 12,
+                                "gc.ps_scavenge.time", 150,
+                                "httpsessions.max", -1,
+                                "httpsessions.active", 5));
         }
 
-        return ResponseEntity.ok(data);
-    }
+        @GetMapping("/health")
+        public ResponseEntity<Object> getHealth() {
+                java.util.List<java.util.Map<String, Object>> healthStatus = new java.util.ArrayList<>();
+                Iterable<com.maverick.feature.domain.RuntimeInstance> instances = runtimeRepository.findAll();
 
-    @PostMapping("/register")
-    @Transactional
-    public ResponseEntity<String> registerMfe(@RequestBody RegisterMfeRequest request) {
-        log.info("Received registration request for MFE: {} v{}", request.getName(), request.getVersion());
+                // Group by App Name
+                java.util.Map<String, java.util.List<com.maverick.feature.domain.RuntimeInstance>> byApp = java.util.stream.StreamSupport
+                                .stream(instances.spliterator(), false)
+                                .collect(java.util.stream.Collectors
+                                                .groupingBy(com.maverick.feature.domain.RuntimeInstance::getAppName));
 
-        // 1. Find or Create Microfrontend
-        Microfrontend mfe = mfeRepository.findByName(request.getName())
-                .orElseGet(() -> {
-                    Microfrontend newMfe = new Microfrontend(request.getName());
-                    newMfe.setType(request.getType());
-                    return mfeRepository.save(newMfe);
+                if (byApp.isEmpty()) {
+                        // Fallback if no instances detected yet (e.g., first start)
+                        return ResponseEntity.ok(java.util.Collections.emptyList());
+                }
+
+                byApp.forEach((appName, list) -> {
+                        boolean healthy = list.stream()
+                                        .anyMatch(i -> i.getLastHeartbeat()
+                                                        .isAfter(LocalDateTime.now().minusMinutes(5)));
+
+                        healthStatus.add(java.util.Map.of(
+                                        "name", appName,
+                                        "status", healthy ? "HEALTHY" : "DOWN",
+                                        "uptime", healthy ? "100%" : "0%" // simplified
+                        ));
                 });
 
-        // 2. Find or Create Version
-        Version v = versionRepository.findByMicrofrontendIdAndVersion(mfe.getId(), request.getVersion())
-                .orElseGet(() -> {
-                    Version newV = new Version();
-                    newV.setMicrofrontend(mfe);
-                    newV.setVersion(request.getVersion());
-                    newV.setRemoteEntry(request.getRemoteEntry());
-                    newV.setIntegrity(request.getIntegrity());
-                    newV.setCreatedAt(LocalDateTime.now());
-                    return versionRepository.save(newV);
-                });
-
-        // Auto-deploy to Production (Global) on register
-        Optional<com.maverick.feature.domain.Deployment> existingDep = deploymentRepository
-                .findActiveGlobal(request.getName(), com.maverick.feature.domain.Environment.PRODUCTION);
-        if (existingDep.isPresent()) {
-            com.maverick.feature.domain.Deployment d = existingDep.get();
-            d.setActive(false);
-            deploymentRepository.save(d);
+                return ResponseEntity.ok(healthStatus);
         }
 
-        com.maverick.feature.domain.Deployment newDep = new com.maverick.feature.domain.Deployment(v,
-                com.maverick.feature.domain.Environment.PRODUCTION,
-                true);
-        deploymentRepository.save(newDep);
+        @GetMapping("/governance")
+        @Transactional(readOnly = true)
+        public ResponseEntity<Object> getGovernance() {
+                java.util.List<java.util.Map<String, String>> checks = new java.util.ArrayList<>();
+                Iterable<MfeApplication> mfes = mfeRepository.findAll();
 
-        log.info("Registered and Deployed {} to Production", v.getVersion());
+                // 1. Check for HTTPS usage in remote entries (Production Deployments)
+                long insecureCount = 0;
+                for (MfeApplication mfe : mfes) {
+                        Optional<com.maverick.feature.domain.Deployment> active = deploymentRepository
+                                        .findActiveGlobal(mfe.getName(),
+                                                        com.maverick.feature.domain.Environment.PRODUCTION);
+                        if (active.isPresent()) {
+                                String remoteEntry = active.get().getVersion().getMetadataValue("remoteEntry");
+                                if (remoteEntry != null && !remoteEntry.startsWith("https")) {
+                                        insecureCount++;
+                                }
+                        }
+                }
+                checks.add(java.util.Map.of("check", "Enforce HTTPS (Prod)", "status",
+                                insecureCount == 0 ? "PASS" : "FAIL"));
 
-        return ResponseEntity.ok("Registered " + request.getName() + "@" + request.getVersion());
-    }
+                // 2. Check for at least 1 active version per MFE
+                long noActiveVersionCount = 0;
+                for (MfeApplication mfe : mfes) {
+                        boolean hasActive = !deploymentRepository
+                                        .findActiveGlobal(mfe.getName(),
+                                                        com.maverick.feature.domain.Environment.PRODUCTION)
+                                        .isEmpty();
+                        if (!hasActive)
+                                noActiveVersionCount++;
+                }
+                checks.add(java.util.Map.of("check", "Active Production Version", "status",
+                                noActiveVersionCount == 0 ? "PASS" : "WARN"));
+
+                // 3. SemVer Compliance Check
+                long nonSemVerCount = versionRepository.findAll().stream()
+                                .filter(v -> !v.getVersion().matches("^\\d+\\.\\d+\\.\\d+(-.*)?$"))
+                                .count();
+                checks.add(java.util.Map.of("check", "SemVer Compliance", "status",
+                                nonSemVerCount == 0 ? "PASS" : "WARN"));
+
+                // 4. Integrated Registry Protocol Status (Real-time DB check)
+                long activePoliciesCount = ((java.util.List<?>) policyRepository.findByIsActiveTrue()).size();
+                checks.add(java.util.Map.of("check", "Governance Active", "status",
+                                activePoliciesCount > 0 ? "PASS" : "FAIL"));
+
+                return ResponseEntity.ok(checks);
+        }
+
+        @GetMapping("/deployments")
+        @Transactional(readOnly = true)
+        public ResponseEntity<Object> getDeployments() {
+                java.util.List<Object> deployments = new java.util.ArrayList<>();
+                Iterable<MfeApplication> mfes = mfeRepository.findAll();
+
+                for (MfeApplication mfe : mfes) {
+                        String activeVer = deploymentRepository
+                                        .findActiveGlobal(mfe.getName(),
+                                                        com.maverick.feature.domain.Environment.PRODUCTION)
+                                        .map(d -> d.getVersion().getVersion())
+                                        .orElse("None");
+
+                        deployments.add(java.util.Map.of(
+                                        "id", mfe.getId(),
+                                        "name", mfe.getName(),
+                                        "type", "module-federation", // Default for now
+                                        "group", mfe.getGroup() != null ? mfe.getGroup().getName() : "None",
+                                        "activeVersion", activeVer,
+                                        "status", "HEALTHY"));
+                }
+                return ResponseEntity.ok(deployments);
+        }
+
+        @GetMapping("/resolution-graph/{remoteName}")
+        @Transactional(readOnly = true)
+        public ResponseEntity<Object> getResolutionGraph(@PathVariable String remoteName) {
+                // Simplified Logic for Enterprise Model for now
+                // Just showing Prod deployment
+                Optional<MfeApplication> mfeOpt = mfeRepository.findByName(remoteName);
+                if (mfeOpt.isEmpty())
+                        return ResponseEntity.notFound().build();
+
+                java.util.List<java.util.Map<String, Object>> nodes = new java.util.ArrayList<>();
+                nodes.add(java.util.Map.of("id", "root", "label", "Shell (" + remoteName + ")", "type", "root"));
+
+                Optional<com.maverick.feature.domain.Deployment> prod = deploymentRepository.findActiveGlobal(
+                                remoteName,
+                                com.maverick.feature.domain.Environment.PRODUCTION);
+
+                if (prod.isPresent()) {
+                        String nodeId = "v-" + prod.get().getVersion().getId();
+                        nodes.add(java.util.Map.of("id", nodeId, "label",
+                                        prod.get().getVersion().getVersion() + " (Prod)", "type",
+                                        "version active", "traffic", "100%"));
+                        java.util.List<java.util.Map<String, Object>> edges = new java.util.ArrayList<>();
+                        edges.add(java.util.Map.of("source", "root", "target", nodeId));
+                        return ResponseEntity.ok(java.util.Map.of("nodes", nodes, "edges", edges));
+                }
+
+                return ResponseEntity.ok(java.util.Map.of("nodes", nodes, "edges", java.util.List.of()));
+        }
+
+        @GetMapping("/runtime")
+        @Transactional(readOnly = true)
+        public ResponseEntity<Object> getRuntime() {
+                java.util.List<Object> data = new java.util.ArrayList<>();
+                Iterable<MfeApplication> mfes = mfeRepository.findAll();
+
+                for (MfeApplication mfe : mfes) {
+                        // Real Version Skew calculation: Active vs Latest version
+                        Optional<com.maverick.feature.domain.Deployment> activeDep = deploymentRepository
+                                        .findActiveGlobal(mfe.getName(),
+                                                        com.maverick.feature.domain.Environment.PRODUCTION);
+
+                        String activeVer = activeDep.map(d -> d.getVersion().getVersion()).orElse("None");
+                        String latestVer = versionRepository.findTopByApplicationIdOrderByCreatedAtDesc(mfe.getId())
+                                        .map(com.maverick.feature.domain.MfeApplicationVersion::getVersion)
+                                        .orElse("None");
+
+                        boolean skewed = !activeVer.equals(latestVer) && !"None".equals(activeVer);
+
+                        // Health Status
+                        String status = "REGISTERED"; // Default
+                        if (activeDep.isPresent()) {
+                                Optional<MfeHealth> health = healthRepository
+                                                .findByApplicationVersionId(activeDep.get().getVersion().getId());
+                                if (health.isPresent()) {
+                                        status = health.get().getStatus() == 200 ? "HEALTHY" : "UNHEALTHY";
+                                } else {
+                                        status = "LIVE"; // Active deployment but no specific health report yet
+                                }
+                        }
+
+                        // Simulated error rates based on version status
+                        double clientError = activeVer.contains("canary") ? 0.05 : 0.01;
+                        int latency = activeVer.contains("canary") ? (150 + (int) (Math.random() * 50))
+                                        : (40 + (int) (Math.random() * 20));
+
+                        data.add(java.util.Map.of(
+                                        "mfeName", mfe.getName(),
+                                        "versionSkew", skewed ? "1 Version Behind" : "Aligned",
+                                        "clientErrors", String.format("%.1f%%", clientError),
+                                        "serverErrors", "0.0%",
+                                        "latency", latency + "ms",
+                                        "status", status));
+                }
+
+                return ResponseEntity.ok(data);
+        }
+
+        @GetMapping("/mfe/{name}/details")
+        @Transactional(readOnly = true)
+        public ResponseEntity<Object> getMfeDetails(@PathVariable String name) {
+                MfeApplication mfe = mfeRepository.findByName(name)
+                                .orElseThrow(() -> new RuntimeException("MFE not found: " + name));
+
+                Optional<com.maverick.feature.domain.Deployment> activeDep = deploymentRepository
+                                .findActiveGlobal(mfe.getName(), com.maverick.feature.domain.Environment.PRODUCTION);
+
+                java.util.Map<String, Object> details = new java.util.HashMap<>();
+                details.put("name", mfe.getName());
+                details.put("id", mfe.getId());
+
+                // Add Version History
+                java.util.List<String> versions = mfe.getVersions().stream()
+                                .map(com.maverick.feature.domain.MfeApplicationVersion::getVersion)
+                                .sorted(java.util.Comparator.reverseOrder())
+                                .collect(java.util.stream.Collectors.toList());
+                details.put("versions", versions);
+
+                // Add Locked Status
+                Optional<com.maverick.feature.domain.Deployment> lockedDep = deploymentRepository
+                                .findLocked(mfe.getName(), com.maverick.feature.domain.Environment.PRODUCTION);
+                details.put("lockedVersion", lockedDep.map(d -> d.getVersion().getVersion()).orElse(null));
+
+                if (activeDep.isPresent()) {
+                        MfeApplicationVersion version = activeDep.get().getVersion();
+                        details.put("activeVersion", version.getVersion());
+                        details.put("environment", activeDep.get().getEnvironment());
+                        details.put("metadata", version.getMetadata());
+                        details.put("dependencies", dependencyRepository.findByApplicationVersionId(version.getId()));
+                        details.put("exposedModules",
+                                        exposedModuleRepository.findByApplicationVersionId(version.getId()));
+                        details.put("consumedRemotes",
+                                        consumedRemoteRepository.findByConsumerVersionId(version.getId()));
+
+                        Optional<MfeHealth> health = healthRepository.findByApplicationVersionId(version.getId());
+                        details.put("health", health.orElse(null));
+                }
+
+                return ResponseEntity.ok(details);
+        }
+
+        @PostMapping("/register")
+        @Transactional
+        public ResponseEntity<String> registerMfe(@RequestBody RegisterMfeRequest request) {
+                log.info("Received registration request for MFE: {} v{}", request.getName(), request.getVersion());
+
+                // 1. Find or Create Application
+                MfeApplication mfe = mfeRepository.findByName(request.getName())
+                                .orElseGet(() -> {
+                                        MfeApplication newApp = new MfeApplication();
+                                        newApp.setName(request.getName());
+                                        // Find or create default group
+                                        com.maverick.feature.domain.MfeApplicationGroup defaultGroup = groupRepository
+                                                        .findAll().stream()
+                                                        .findFirst()
+                                                        .orElseGet(() -> {
+                                                                com.maverick.feature.domain.MfeApplicationGroup g = new com.maverick.feature.domain.MfeApplicationGroup();
+                                                                g.setName("Default");
+                                                                return groupRepository.save(g);
+                                                        });
+                                        newApp.setGroup(defaultGroup);
+                                        return mfeRepository.save(newApp);
+                                });
+
+                // 2. Find or Create Version
+                MfeApplicationVersion v = versionRepository
+                                .findByApplicationIdAndVersion(mfe.getId(), request.getVersion())
+                                .orElseGet(() -> {
+                                        MfeApplicationVersion newV = new MfeApplicationVersion();
+                                        newV.setApplication(mfe);
+                                        newV.setVersion(request.getVersion());
+                                        newV.setCreatedAt(LocalDateTime.now());
+                                        newV = versionRepository.save(newV);
+
+                                        // Add Metadata
+                                        com.maverick.feature.domain.MfeMetadata meta = new com.maverick.feature.domain.MfeMetadata();
+                                        meta.setApplicationVersion(newV);
+                                        meta.setName("remoteEntry");
+                                        meta.setValue(request.getRemoteEntry());
+                                        // Could also save integrity if needed
+                                        return newV;
+                                });
+
+                // 3. Process Consumed Remotes (Static/Build-time)
+                if (request.getConsumedRemotes() != null) {
+                        for (RegisterMfeRequest.ConsumedRemoteMetadata meta : request.getConsumedRemotes()) {
+                                MfeConsumedRemote consumed = new MfeConsumedRemote();
+                                consumed.setConsumerVersion(v);
+                                consumed.setRemoteName(meta.getRemoteName());
+                                consumed.setUsedModules(meta.getModules());
+                                consumed.setDynamic(meta.isDynamic());
+                                consumedRemoteRepository.save(consumed);
+                        }
+                }
+
+                // Auto-deploy to Production (Global) on register
+                Optional<com.maverick.feature.domain.Deployment> existingDep = deploymentRepository
+                                .findActiveGlobal(request.getName(),
+                                                com.maverick.feature.domain.Environment.PRODUCTION);
+                if (existingDep.isPresent()) {
+                        com.maverick.feature.domain.Deployment d = existingDep.get();
+                        d.setActive(false);
+                        deploymentRepository.save(d);
+                }
+
+                com.maverick.feature.domain.Deployment newDep = new com.maverick.feature.domain.Deployment(v,
+                                com.maverick.feature.domain.Environment.PRODUCTION,
+                                true);
+                deploymentRepository.save(newDep);
+
+                log.info("Registered and Deployed {} to Production", v.getVersion());
+
+                return ResponseEntity.ok("Registered " + request.getName() + "@" + request.getVersion());
+        }
+
+        @PostMapping("/telemetry/consumption")
+        @Transactional
+        public ResponseEntity<String> reportConsumption(@RequestBody java.util.Map<String, Object> report) {
+                String consumer = (String) report.get("consumer");
+                String remote = (String) report.get("remote");
+                String modules = (String) report.get("modules");
+                String env = (String) report.get("environment");
+
+                log.info("Runtime Consumption Report: {} consuming {} (modules: {}) in {}", consumer, remote, modules,
+                                env);
+
+                // Find active version for consumer
+                Optional<com.maverick.feature.domain.Deployment> dep = deploymentRepository
+                                .findActiveGlobal(consumer, com.maverick.feature.domain.Environment.PRODUCTION);
+
+                if (dep.isPresent()) {
+                        MfeConsumedRemote consumed = new MfeConsumedRemote();
+                        consumed.setConsumerVersion(dep.get().getVersion());
+                        consumed.setRemoteName(remote);
+                        consumed.setUsedModules(modules);
+                        consumed.setDynamic(true);
+                        consumed.setEnvironment(env);
+                        consumedRemoteRepository.save(consumed);
+                        return ResponseEntity.ok("Reported");
+                }
+
+                return ResponseEntity.status(404).body("Consumer not found or no active deployment");
+        }
+
+        @GetMapping("/dependency-graph")
+        @Transactional(readOnly = true)
+        public ResponseEntity<Object> getDependencyGraph() {
+                java.util.List<java.util.Map<String, Object>> nodes = new java.util.ArrayList<>();
+                java.util.List<java.util.Map<String, Object>> edges = new java.util.ArrayList<>();
+                java.util.Set<String> addedNodes = new java.util.HashSet<>();
+
+                Iterable<MfeApplication> apps = mfeRepository.findAll();
+                for (MfeApplication app : apps) {
+                        java.util.Map<String, Object> node = new java.util.HashMap<>();
+                        node.put("id", app.getName());
+                        node.put("label", app.getName());
+                        node.put("type", "app");
+
+                        // Get active production version
+                        Optional<com.maverick.feature.domain.Deployment> dep = deploymentRepository
+                                        .findActiveGlobal(app.getName(),
+                                                        com.maverick.feature.domain.Environment.PRODUCTION);
+
+                        if (dep.isPresent()) {
+                                MfeApplicationVersion v = dep.get().getVersion();
+                                // Add exposed modules to node info
+                                java.util.List<com.maverick.feature.domain.MfeExposedModule> exposed = exposedModuleRepository
+                                                .findByApplicationVersionId(v.getId());
+                                java.util.List<String> moduleNames = exposed.stream().map(m -> m.getName())
+                                                .collect(java.util.stream.Collectors.toList());
+                                node.put("exposedModules", moduleNames);
+
+                                java.util.List<MfeConsumedRemote> consumed = consumedRemoteRepository
+                                                .findByConsumerVersionId(v.getId());
+                                for (MfeConsumedRemote c : consumed) {
+                                        if (!addedNodes.contains(c.getRemoteName())) {
+                                                nodes.add(java.util.Map.of("id", c.getRemoteName(), "label",
+                                                                c.getRemoteName(), "type", "external"));
+                                                addedNodes.add(c.getRemoteName());
+                                        }
+                                        edges.add(java.util.Map.of(
+                                                        "source", app.getName(),
+                                                        "target", c.getRemoteName(),
+                                                        "label", c.getUsedModules() != null ? c.getUsedModules() : "",
+                                                        "dynamic", c.getDynamic()));
+                                }
+                        }
+
+                        nodes.add(node);
+                        addedNodes.add(app.getName());
+                }
+
+                return ResponseEntity.ok(java.util.Map.of("nodes", nodes, "edges", edges));
+        }
+
+        @GetMapping("/mfe/{name}/logs")
+        public ResponseEntity<Object> getMfeLogs(@PathVariable String name) {
+                return proxyToMfe(name, "logs.json");
+        }
+
+        @GetMapping("/mfe/{name}/threads")
+        public ResponseEntity<Object> getMfeThreads(@PathVariable String name) {
+                return proxyToMfe(name, "threads.json");
+        }
+
+        @GetMapping("/mfe/{name}/traces")
+        public ResponseEntity<Object> getMfeTraces(@PathVariable String name) {
+                return proxyToMfe(name, "traces.json");
+        }
+
+        private ResponseEntity<Object> proxyToMfe(String name, String asset) {
+                Optional<com.maverick.feature.domain.Deployment> activeDep = deploymentRepository
+                                .findActiveGlobal(name, com.maverick.feature.domain.Environment.PRODUCTION);
+
+                if (activeDep.isEmpty()) {
+                        return ResponseEntity.status(404).body("No active deployment found for " + name);
+                }
+
+                String remoteEntry = activeDep.get().getVersion().getMetadataValue("remoteEntry");
+                if (remoteEntry == null) {
+                        return ResponseEntity.status(404).body("No remoteEntry found for " + name);
+                }
+
+                // Convert remoteEntry (e.g., http://localhost:4201/remoteEntry.js) to base URL
+                // (http://localhost:4201)
+                String baseUrl = remoteEntry.substring(0, remoteEntry.lastIndexOf('/'));
+                String assetUrl = baseUrl + "/assets/" + asset;
+
+                try {
+                        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                        Object response = restTemplate.getForObject(assetUrl, Object.class);
+                        return ResponseEntity.ok(response);
+                } catch (Exception e) {
+                        log.error("Failed to fetch {} from {}: {}", asset, assetUrl, e.getMessage());
+                        return ResponseEntity.status(502).body("Failed to fetch " + asset + " from MFE");
+                }
+        }
+
 }

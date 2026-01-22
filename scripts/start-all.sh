@@ -14,7 +14,7 @@ nohup ./opa run --server --set=decision_logs.console=true ./policies > "$LOG_DIR
 # 2. Start Backend Service
 echo "[2/5] Starting MFE Feature Service (Port 8081)..."
 cd "$BASE_DIR/mfe-feature-service"
-nohup ./mvnw spring-boot:run > "$LOG_DIR/backend.log" 2>&1 &
+nohup mvn spring-boot:run > "$LOG_DIR/backend.log" 2>&1 &
 
 # 3. Start Dashboard UI
 echo "[3/5] Starting Governing Dashboard (Port 4203)..."

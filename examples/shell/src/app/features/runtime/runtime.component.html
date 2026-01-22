@@ -1,0 +1,48 @@
+<div class="card full-width">
+    <div class="header-row">
+        <h2>Runtime Metrics</h2>
+        <span class="live-indicator">LIVE</span>
+    </div>
+
+    <div class="metrics-grid">
+        <div class="metric-card" *ngFor="let m of metrics()">
+
+            <!-- Card Header -->
+            <div class="card-header">
+                <span class="mfe-name">{{ m.mfeName }}</span>
+                <span class="latency-badge">{{ m.latency }}</span>
+            </div>
+
+            <!-- Charts Area -->
+            <div class="charts-area">
+                <!-- Visualization 1: Version Skew (Canary vs Stable) -->
+                <div class="chart-wrapper">
+                    <div class="donut-chart"
+                        [style.background]="'conic-gradient(var(--warning) ' + m.versionSkew + ', var(--border-subtle) 0)'">
+                        <span class="chart-value">{{ m.versionSkew }}</span>
+                    </div>
+                    <span class="chart-label">Canary Traffic</span>
+                </div>
+
+                <!-- Visualization 2: Error Rate Mock (Inverse of health) -->
+                <!-- We use clientErrors string (e.g. '0.5%') to visualize -->
+                <div class="chart-wrapper">
+                    <div class="donut-chart"
+                        [style.background]="'conic-gradient(var(--error) ' + m.clientErrors + ', var(--success) 0)'">
+                        <span class="chart-value">{{ m.clientErrors }}</span>
+                    </div>
+                    <span class="chart-label">Client Errors</span>
+                </div>
+            </div>
+
+            <!-- Detailed Text Stats -->
+            <div class="error-stats">
+                <div class="stat-row">
+                    <span class="label">Server Errors</span>
+                    <span class="val err">{{ m.serverErrors }}</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

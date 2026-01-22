@@ -1,9 +1,8 @@
 package com.maverick.feature.config;
 
-import com.maverick.feature.domain.Microfrontend;
-import com.maverick.feature.domain.Version;
-import com.maverick.feature.repository.MicrofrontendRepository;
-import com.maverick.feature.repository.VersionRepository;
+import com.maverick.feature.domain.*;
+import com.maverick.feature.repository.*;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,15 +15,18 @@ public class DataInitializer {
 
         @Bean
         public CommandLineRunner initData(
-                        com.maverick.feature.repository.MicrofrontendRepository mfeRepo,
-                        com.maverick.feature.repository.VersionRepository versionRepo,
-                        com.maverick.feature.repository.DeploymentRepository deploymentRepo,
-                        com.maverick.feature.repository.TenantRepository tenantRepo,
-                        com.maverick.feature.repository.PolicyRepository policyRepo,
+                        MfeApplicationRepository appRepo,
+                        MfeApplicationVersionRepository versionRepo,
+                        MfeApplicationGroupRepository groupRepo,
+                        MfeMetadataRepository metadataRepo,
+                        DeploymentRepository deploymentRepo,
+                        TenantRepository tenantRepo,
+                        PolicyRepository policyRepo,
                         org.ff4j.FF4j ff4j,
                         org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
-                        com.maverick.feature.service.GovernancePolicySyncService syncService, // Added syncService
-                        com.maverick.feature.config.MfeProperties properties) {
+                        com.maverick.feature.service.GovernancePolicySyncService syncService,
+                        MfeProperties properties) {
+
                 return args -> {
                         System.out.println(
                                         ">>> FF4j Store Type: " + ff4j.getFeatureStore().getClass().getName() + " <<<");
@@ -54,78 +56,81 @@ public class DataInitializer {
                         }
 
                         // 4. Seed Microfrontends and Versions
-                        if (mfeRepo.count() == 0) {
-                                Microfrontend mfe = new Microfrontend("remote-profile");
-                                mfe.setDescription("User Profile Management Remote");
-                                mfe.setType("module-federation");
-                                mfe.setFeatureGroupName("remote-profile");
-                                mfe.setCreatedAt(LocalDateTime.now());
-                                mfe.setUpdatedAt(LocalDateTime.now());
-                                mfe = mfeRepo.save(mfe);
-                                System.out.println(">>> Seeded MFE: remote-profile (Group: remote-profile) <<<");
+                        if (appRepo.count() == 0) {
+                                MfeApplicationGroup group = new MfeApplicationGroup();
+                                group.setName("Default Group");
+                                group = groupRepo.save(group);
 
-                                System.out.println(">>> Seeded MFE: remote-profile (Group: remote-profile) <<<");
+                                MfeApplication app = new MfeApplication();
+                                app.setName("remote-profile");
+                                app.setGroup(group);
+                                app.setTags("profile,user");
+                                app = appRepo.save(app);
+                                System.out.println(">>> Seeded App: remote-profile (Group: Default Group) <<<");
 
                                 String remoteEntryUrl = properties.getRemoteUrls().getOrDefault("remote-profile",
                                                 "http://localhost:4201/remoteEntry.js");
 
-                                Version v1 = new Version();
+                                MfeApplicationVersion v1 = new MfeApplicationVersion();
                                 v1.setVersion("1.0.0");
-                                v1.setRemoteEntry(remoteEntryUrl);
-                                v1.setMicrofrontend(mfe);
-                                v1.setCreatedAt(LocalDateTime.now());
+                                v1.setApplication(app);
+                                v1.setEnvironment("PRODUCTION");
+                                v1.setLatest(true);
                                 v1 = versionRepo.save(v1);
 
+                                // Seed Metadata for v1
+                                MfeMetadata m1 = new MfeMetadata();
+                                m1.setApplicationVersion(v1);
+                                m1.setName("remoteEntry");
+                                m1.setValue(remoteEntryUrl);
+                                metadataRepo.save(m1);
+
                                 // Create Stable Deployment
-                                com.maverick.feature.domain.Deployment d1 = new com.maverick.feature.domain.Deployment(
-                                                v1,
-                                                com.maverick.feature.domain.Environment.PRODUCTION,
-                                                true);
+                                Deployment d1 = new Deployment(v1, Environment.PRODUCTION, true);
                                 deploymentRepo.save(d1);
 
-                                Version v2 = new Version();
+                                MfeApplicationVersion v2 = new MfeApplicationVersion();
                                 v2.setVersion("1.1.0-canary");
-                                v2.setRemoteEntry(remoteEntryUrl);
-                                v2.setMicrofrontend(mfe);
-                                v2.setCreatedAt(LocalDateTime.now());
+                                v2.setApplication(app);
+                                v2.setEnvironment("STAGING");
+                                v2.setLatest(false);
                                 v2 = versionRepo.save(v2);
 
-                                // Create Canary Deployment (Simulated as "production" env but handled via FF4j
-                                // logic mostly, or separate env)
-                                // For this architecture, we map it to "staging" to verify env scoping
-                                com.maverick.feature.domain.Deployment stagingDeploy = new com.maverick.feature.domain.Deployment(
-                                                v2,
-                                                com.maverick.feature.domain.Environment.STAGING,
-                                                true);
-                                deploymentRepo.save(stagingDeploy);
+                                // Seed Metadata for v2
+                                MfeMetadata m2 = new MfeMetadata();
+                                m2.setApplicationVersion(v2);
+                                m2.setName("remoteEntry");
+                                m2.setValue(remoteEntryUrl);
+                                metadataRepo.save(m2);
 
-                                // 4.3 Create Active Deployment for "development" (Canary)
-                                com.maverick.feature.domain.Deployment devDeploy = new com.maverick.feature.domain.Deployment(
-                                                v2,
-                                                com.maverick.feature.domain.Environment.DEVELOPMENT, true);
-                                deploymentRepo.save(devDeploy);
+                                // Create Canary Deployment
+                                deploymentRepo.save(new Deployment(v2, Environment.STAGING, true));
+                                deploymentRepo.save(new Deployment(v2, Environment.DEVELOPMENT, true));
 
-                                System.out
-                                                .println(
-                                                                ">>> Database seeded with remote-profile (v1.0.0 Stable / v1.1.0-canary Staging & Dev) <<<");
+                                System.out.println(
+                                                ">>> Database seeded with remote-profile (v1.0.0 Stable / v1.1.0-canary Staging & Dev) <<<");
 
-                                // Seed remote-audit for Policy Demo
-                                Microfrontend auditMfe = new Microfrontend("remote-audit");
-                                auditMfe.setDescription("Critical Audit Terminal");
-                                auditMfe.setType("module-federation");
-                                auditMfe.setCreatedAt(LocalDateTime.now());
-                                auditMfe = mfeRepo.save(auditMfe);
+                                // Seed remote-audit
+                                MfeApplication auditApp = new MfeApplication();
+                                auditApp.setName("remote-audit");
+                                auditApp.setGroup(group);
+                                auditApp = appRepo.save(auditApp);
 
-                                Version vAudit = new Version();
+                                MfeApplicationVersion vAudit = new MfeApplicationVersion();
                                 vAudit.setVersion("2.0.0");
-                                vAudit.setRemoteEntry("http://localhost:4205/remoteEntry.js");
-                                vAudit.setMicrofrontend(auditMfe);
-                                vAudit.setCreatedAt(LocalDateTime.now());
-                                versionRepo.save(vAudit);
+                                vAudit.setApplication(auditApp);
+                                vAudit.setEnvironment("PRODUCTION");
+                                vAudit.setLatest(true);
+                                vAudit = versionRepo.save(vAudit);
 
-                                deploymentRepo.save(new com.maverick.feature.domain.Deployment(vAudit,
-                                                com.maverick.feature.domain.Environment.PRODUCTION, true));
-                                System.out.println(">>> Seeded MFE: remote-audit (v2.0.0 Stable) <<<");
+                                MfeMetadata ma = new MfeMetadata();
+                                ma.setApplicationVersion(vAudit);
+                                ma.setName("remoteEntry");
+                                ma.setValue("http://localhost:4205/remoteEntry.js");
+                                metadataRepo.save(ma);
+
+                                deploymentRepo.save(new Deployment(vAudit, Environment.PRODUCTION, true));
+                                System.out.println(">>> Seeded App: remote-audit (v2.0.0 Stable) <<<");
                         }
 
                         // 5. Seed Policies

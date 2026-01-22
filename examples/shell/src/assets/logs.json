@@ -1,0 +1,6 @@
+[
+    "2026-01-17T10:00:00 [main] INFO  ShellApplication - Starting Shell...",
+    "2026-01-17T10:00:01 [main] INFO  DiscoveryClient - Registered with backend",
+    "2026-01-17T10:00:05 [main] WARN  NetworkUtil - Slow response from CDN",
+    "2026-01-17T10:00:10 [http-nio-4200-exec-1] INFO  UserController - User logged in"
+]

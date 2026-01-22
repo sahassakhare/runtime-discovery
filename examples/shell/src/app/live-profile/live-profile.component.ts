@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MfeHostComponent } from '../../../../../src/runtime-discovery/mfe-host.component';
+import { MfeHostComponent } from '../core/runtime-discovery/mfe-host.component';
 
 @Component({
   selector: 'app-live-profile',
@@ -11,7 +11,7 @@ import { MfeHostComponent } from '../../../../../src/runtime-discovery/mfe-host.
       <!-- The Host Component manages the lifecycle with Governance reactivity -->
       <mfe-host 
         remoteName="remote-profile" 
-        exposedModule="./ProfileComponent">
+        exposedModule="./Profile">
       </mfe-host>
     </div>
   `

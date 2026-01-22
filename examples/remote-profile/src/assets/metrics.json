@@ -1,0 +1,20 @@
+{
+    "mem": 512,
+    "mem.free": 100,
+    "processors": 4,
+    "uptime": 120000,
+    "systemload.average": 0.5,
+    "heap.committed": 256,
+    "heap.init": 128,
+    "heap.used": 150,
+    "threads.peak": 25,
+    "threads.daemon": 10,
+    "threads.totalListened": 50,
+    "classes": 2500,
+    "classes.loaded": 2500,
+    "classes.unloaded": 0,
+    "gc.ps_scavenge.count": 5,
+    "gc.ps_scavenge.time": 80,
+    "httpsessions.max": -1,
+    "httpsessions.active": 2
+}

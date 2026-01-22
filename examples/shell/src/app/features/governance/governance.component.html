@@ -1,0 +1,371 @@
+<mat-sidenav-container class="h-full">
+    <!-- Configuration Sidebar -->
+    <mat-sidenav #drawer mode="over" position="end" [opened]="!!isCreating || !!editingPolicy" (closed)="closeDrawer()"
+        class="w-full max-w-xl border-l-0 shadow-2xl">
+        <div class="h-full flex flex-col bg-white">
+            <!-- Zen Elite Header -->
+            <div class="drawer-header flex items-center justify-between sticky top-0 bg-white z-10">
+                <div>
+                    <h3 class="drawer-title">
+                        {{ isCreating ? 'Protocol Initiation' : 'Orchestration Config' }}
+                    </h3>
+                    <p class="drawer-subtitle">
+                        {{ isCreating ? 'New Security Definition' : 'Active Context: ' + editingPolicy?.id }}
+                    </p>
+                </div>
+                <button mat-icon-button (click)="closeDrawer()"
+                    class="bg-slate-50 text-slate-400 hover:text-slate-900 transition-all rounded-xl">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+
+            <!-- Content Container -->
+            <div class="flex-1 overflow-y-auto p-10 space-y-10 drawer-form">
+                <!-- Section 1: Context -->
+                <div>
+                    <div class="section-label">
+                        <div class="bar"></div>
+                        <span>Administrative Context</span>
+                    </div>
+
+                    <div class="space-y-4">
+                        <mat-form-field appearance="outline" class="w-full">
+                            <mat-label>Policy Identifier</mat-label>
+                            <input matInput [(ngModel)]="editForm.name" [readonly]="!isCreating"
+                                placeholder="Display name">
+                            <mat-icon matPrefix class="mr-3 scale-75 text-slate-400">fingerprint</mat-icon>
+                        </mat-form-field>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <mat-form-field appearance="outline">
+                                <mat-label>Domain</mat-label>
+                                <mat-select [(ngModel)]="editForm.category" [disabled]="!isCreating">
+                                    <mat-option *ngFor="let cat of categories" [value]="cat">{{ cat }}</mat-option>
+                                </mat-select>
+                                <mat-icon matPrefix class="mr-3 scale-75 text-slate-400">hub</mat-icon>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline">
+                                <mat-label>Engine</mat-label>
+                                <mat-select [(ngModel)]="editForm.type" [disabled]="!isCreating">
+                                    <mat-option *ngFor="let s of strategyTypes" [value]="s.key">{{ s.name
+                                        }}</mat-option>
+                                </mat-select>
+                                <mat-icon matPrefix
+                                    class="mr-3 scale-75 text-slate-400">settings_input_component</mat-icon>
+                            </mat-form-field>
+                        </div>
+
+                        <mat-form-field appearance="outline" class="w-full">
+                            <mat-label>Enforcement Protocol</mat-label>
+                            <mat-select [(ngModel)]="editForm.enforcementLevel">
+                                <mat-option value="BLOCK" class="text-rose-600 font-black text-xs uppercase">Block ●
+                                    Critical</mat-option>
+                                <mat-option value="LOG" class="text-blue-600 font-black text-xs uppercase">Log ●
+                                    Observation</mat-option>
+                                <mat-option value="ALLOW" class="text-emerald-600 font-black text-xs uppercase">Allow ●
+                                    Permissive</mat-option>
+                            </mat-select>
+                            <mat-icon matPrefix class="mr-3 scale-75 text-slate-400">shield</mat-icon>
+                        </mat-form-field>
+
+                        <mat-form-field appearance="outline" class="w-full">
+                            <mat-label>Description</mat-label>
+                            <textarea matInput [(ngModel)]="editForm.description" rows="2"
+                                placeholder="Briefly describe intent..."></textarea>
+                        </mat-form-field>
+                    </div>
+                </div>
+
+                <!-- Section 2: Instruction -->
+                <div>
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="section-label mb-0">
+                            <div class="bar bg-slate-400"></div>
+                            <span>Policy Instruction</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button (click)="prettifyJson()"
+                                class="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-colors">
+                                <mat-icon class="scale-50 w-4 h-4">auto_fix_high</mat-icon> Prettify
+                            </button>
+                            <button (click)="copyToClipboard()"
+                                class="px-3 py-1.5 bg-white border border-slate-200 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                <mat-icon class="scale-50 w-4 h-4">content_copy</mat-icon> Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="config-editor-wrapper">
+                        <textarea class="config-editor" [(ngModel)]="editForm.configuration" spellcheck="false"
+                            placeholder='{ "rules": [] }'></textarea>
+                    </div>
+                    <div class="editor-footer">
+                        <span class="env-badge">{{ editForm.type }} Environment</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="p-8 border-t border-slate-100 bg-white flex gap-4 sticky bottom-0 z-10">
+                <button mat-flat-button color="primary"
+                    class="flex-1 h-12 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-100"
+                    (click)="savePolicy()">
+                    <mat-icon class="mr-2 scale-75">done_all</mat-icon>
+                    Commit Configuration
+                </button>
+                <button mat-stroked-button
+                    class="h-12 px-6 rounded-xl font-black text-xs uppercase tracking-widest text-slate-500 border-2 hover:bg-slate-50 bg-white"
+                    (click)="closeDrawer()">
+                    Revert
+                </button>
+            </div>
+        </div>
+    </mat-sidenav>
+
+    <!-- Main Content -->
+    <mat-sidenav-content class="bg-white flex flex-col min-h-screen content-area-zen">
+        <!-- Section Title & Actions (In-Page) -->
+        <div class="px-10 pt-10 pb-6 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Governance Gateways</h1>
+                <p class="text-sm font-medium text-slate-500 mt-1">Registry-wide protocol enforcement and OPA security
+                    layers</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="g-search-container">
+                    <mat-icon class="g-search-icon">search</mat-icon>
+                    <input type="text" (input)="updateSearch($any($event.target).value)" class="g-search-input"
+                        placeholder="Search protocols...">
+                </div>
+                <button mat-flat-button color="primary"
+                    class="h-11 rounded-xl font-black text-xs uppercase tracking-widest px-8 shadow-xl shadow-blue-100/50"
+                    (click)="openCreateModal()">
+                    <mat-icon class="mr-2 scale-75 cursor-pointer">add_moderator</mat-icon>
+                    Init Protocol
+                </button>
+            </div>
+        </div>
+
+        <!-- Bulletproof Operational Pulse -->
+        <div class="g-metrics-grid">
+            <div class="g-metric-card">
+                <div class="g-metric-icon-box text-blue-600">
+                    <mat-icon>security</mat-icon>
+                </div>
+                <div class="g-metric-content">
+                    <span class="g-metric-label">Active Rules</span>
+                    <span class="g-metric-value">{{ metrics.activePolicies }}</span>
+                </div>
+            </div>
+
+            <div class="g-metric-card">
+                <div class="g-metric-icon-box text-rose-500">
+                    <mat-icon>gpp_maybe</mat-icon>
+                </div>
+                <div class="g-metric-content">
+                    <span class="g-metric-label">Security Level</span>
+                    <span class="g-metric-value text-rose-600">{{ metrics.blockingPolicies }}</span>
+                </div>
+            </div>
+
+            <div class="g-metric-card">
+                <div class="g-metric-icon-box text-emerald-500">
+                    <mat-icon>sensors</mat-icon>
+                </div>
+                <div class="g-metric-content">
+                    <span class="g-metric-label">Live Nodes</span>
+                    <span class="g-metric-value text-emerald-600">{{ metrics.activeFeatures }}</span>
+                </div>
+            </div>
+
+            <div class="g-status-pill">
+                <div class="g-status-text">
+                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Mesh
+                        Sync</span>
+                    <span class="text-[10px] font-black text-slate-900 uppercase">Optimal (2.4s)</span>
+                </div>
+                <div class="g-pulse-dot"></div>
+            </div>
+        </div>
+
+        <!-- Main Explorer -->
+        <main class="flex-1 p-10">
+            <mat-tab-group>
+                <mat-tab label="Policy Catalog">
+                    <!-- Bulk Control Header -->
+                    <div class="flex items-center justify-between mt-6 px-8">
+                        <div class="flex items-center gap-3">
+                            <mat-icon class="text-slate-400" style="transform: scale(0.8)">batch_prediction</mat-icon>
+                            <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Bulk Matrix
+                                Operations</span>
+                        </div>
+                        <div class="flex items-center gap-4 bg-slate-50 border border-slate-100 px-6 py-2"
+                            style="border-radius: 12px">
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Master
+                                Protocol Control</span>
+                            <mat-slide-toggle [checked]="allPoliciesActive" (change)="toggleAllPolicies($event.checked)"
+                                color="primary" matTooltip="Global Kill-Switch: Toggle All Protocols">
+                            </mat-slide-toggle>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <table mat-table [dataSource]="filteredPolicies$" class="w-full">
+                            <ng-container matColumnDef="name">
+                                <th mat-header-cell *matHeaderCellDef class="px-8">Policy Label</th>
+                                <td mat-cell *matCellDef="let p" class="px-8">
+                                    <div class="flex flex-col">
+                                        <span class="font-bold text-slate-900">{{ p.name }}</span>
+                                        <span class="text-[11px] text-slate-400 uppercase tracking-tight">{{ p.id
+                                            }}</span>
+                                    </div>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="scope">
+                                <th mat-header-cell *matHeaderCellDef class="px-8">Category</th>
+                                <td mat-cell *matCellDef="let p" class="px-8">
+                                    <span
+                                        class="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200/50">{{
+                                        p.category }}</span>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="engine">
+                                <th mat-header-cell *matHeaderCellDef class="px-8 text-center">Engine</th>
+                                <td mat-cell *matCellDef="let p" class="px-8 text-center">
+                                    <code
+                                        class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100/50">{{ p.type }}</code>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="status">
+                                <th mat-header-cell *matHeaderCellDef class="px-8 text-center">Enforcement & Status</th>
+                                <td mat-cell *matCellDef="let p" class="px-8 text-center">
+                                    <div class="flex items-center justify-center gap-4">
+                                        <div class="badge px-4 py-1.5 border"
+                                            [class.bg-rose-50]="p.enforcementLevel === 'BLOCK'"
+                                            [class.text-rose-700]="p.enforcementLevel === 'BLOCK'"
+                                            [class.border-rose-100]="p.enforcementLevel === 'BLOCK'"
+                                            [class.bg-emerald-50]="p.enforcementLevel === 'ALLOW'"
+                                            [class.text-emerald-700]="p.enforcementLevel === 'ALLOW'"
+                                            [class.border-emerald-100]="p.enforcementLevel === 'ALLOW'"
+                                            [class.bg-slate-50]="p.enforcementLevel !== 'BLOCK' && p.enforcementLevel !== 'ALLOW'"
+                                            [class.text-slate-600]="p.enforcementLevel !== 'BLOCK' && p.enforcementLevel !== 'ALLOW'"
+                                            [class.border-slate-200]="p.enforcementLevel !== 'BLOCK' && p.enforcementLevel !== 'ALLOW'"
+                                            [class.opacity-40]="!p.active">
+                                            <span class="badge-dot" [class.bg-rose-500]="p.enforcementLevel === 'BLOCK'"
+                                                [class.bg-emerald-500]="p.enforcementLevel === 'ALLOW'"
+                                                [class.bg-slate-400]="p.enforcementLevel !== 'BLOCK' && p.enforcementLevel !== 'ALLOW'"></span>
+                                            {{ p.enforcementLevel }}
+                                        </div>
+
+                                        <mat-slide-toggle [checked]="p.active"
+                                            (change)="onTogglePolicy(p, $event.checked)" color="primary"
+                                            [matTooltip]="p.active ? 'Deactivate Protocol' : 'Activate Protocol'">
+                                        </mat-slide-toggle>
+                                    </div>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="admin">
+                                <th mat-header-cell *matHeaderCellDef class="px-8 text-right">Actions</th>
+                                <td mat-cell *matCellDef="let p" class="px-8 text-right">
+                                    <button mat-flat-button
+                                        class="bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-900 hover:text-white transition-all rounded-lg px-6"
+                                        (click)="editPolicy(p)">
+                                        Configure
+                                    </button>
+                                </td>
+                            </ng-container>
+
+                            <tr mat-header-row *matHeaderRowDef="displayedPolicyColumns"></tr>
+                            <tr mat-row *matRowDef="let row; columns: displayedPolicyColumns;"></tr>
+                        </table>
+                    </div>
+                </mat-tab>
+
+                <mat-tab label="Feature Matrix">
+                    <!-- Bulk Control Header -->
+                    <div class="flex items-center justify-between mt-6 px-8">
+                        <div class="flex items-center gap-3">
+                            <mat-icon class="text-slate-400" style="transform: scale(0.8)">hub</mat-icon>
+                            <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Global Node
+                                Control</span>
+                        </div>
+                        <div class="flex items-center gap-4 bg-slate-50 border border-slate-100 px-6 py-2"
+                            style="border-radius: 12px">
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Master Node
+                                Control</span>
+                            <mat-slide-toggle [checked]="allFeaturesActive" (change)="toggleAllFeatures($event.checked)"
+                                color="primary" matTooltip="Global Orchestrator: Toggle All Nodes">
+                            </mat-slide-toggle>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <table mat-table [dataSource]="filteredFeatures$" class="w-full">
+                            <ng-container matColumnDef="flag">
+                                <th mat-header-cell *matHeaderCellDef class="px-8">MFE Identifier</th>
+                                <td mat-cell *matCellDef="let f" class="px-8">
+                                    <span class="mono font-bold text-slate-700 text-base tracking-tighter">{{ f.key
+                                        }}</span>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="execution">
+                                <th mat-header-cell *matHeaderCellDef class="px-8 text-center">Runtime Status</th>
+                                <td mat-cell *matCellDef="let f" class="px-8 text-center">
+                                    <div class="badge px-4 py-1.5 border" [class.bg-emerald-50]="f.enabled"
+                                        [class.text-emerald-700]="f.enabled" [class.border-emerald-100]="f.enabled">
+                                        <span class="badge-dot" [class.bg-emerald-500]="f.enabled"
+                                            [class.bg-slate-300]="!f.enabled"></span>
+                                        {{ f.enabled ? 'Enabled' : 'Disabled' }}
+                                    </div>
+                                </td>
+                            </ng-container>
+
+                            <ng-container matColumnDef="control">
+                                <th mat-header-cell *matHeaderCellDef class="px-8 text-right">Emergency Control</th>
+                                <td mat-cell *matCellDef="let f" class="px-8 text-right">
+                                    <button mat-stroked-button color="warn"
+                                        class="h-10 rounded-xl px-6 text-xs font-bold border-2"
+                                        (click)="toggleFeature(f.key)">
+                                        {{ f.enabled ? 'Deactivate Node' : 'Initialize Node' }}
+                                    </button>
+                                </td>
+                            </ng-container>
+
+                            <tr mat-header-row *matHeaderRowDef="displayedFeatureColumns"></tr>
+                            <tr mat-row *matRowDef="let row; columns: displayedFeatureColumns;"></tr>
+                        </table>
+                    </div>
+                </mat-tab>
+            </mat-tab-group>
+
+            <!-- Footer Meta -->
+            <div
+                class="mt-20 pt-10 border-t border-slate-100 flex items-center justify-between opacity-60 hover:opacity-100 transition-opacity">
+                <div class="flex items-center gap-4">
+                    <div
+                        class="px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-200">
+                        System v4.2</div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Maverick Gov-Mesh
+                        Node</span>
+                    <span class="text-slate-200">•</span>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cluster Health:
+                        100%</span>
+                </div>
+                <div class="flex items-center gap-8">
+                    <a href="#"
+                        class="text-[10px] font-bold text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-widest">Protocol
+                        Docs</a>
+                    <a href="#"
+                        class="text-[10px] font-bold text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-widest">Audit
+                        Terminal</a>
+                </div>
+            </div>
+        </main>
+    </mat-sidenav-content>
+</mat-sidenav-container>

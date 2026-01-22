@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, Router, NavigationEnd } from '@angular/router';
 import { setAppInjector } from './app-injector';
 import { AuthService } from './auth.service';
-import { LiveDiscoveryService } from '../../../../src/runtime-discovery/live-discovery.service';
+import { LiveDiscoveryService } from './core/runtime-discovery/live-discovery.service';
 
 @Component({
   selector: 'app-root',
@@ -39,7 +39,15 @@ export class AppComponent implements OnInit {
     // Track active route for UI visibility
     this.router.events.subscribe(event => {
       if (event instanceof NavigationEnd) {
-        this.isLiveRoute.set(event.url.includes('/live'));
+        const isLive = event.url.includes('/live');
+        this.isLiveRoute.set(isLive);
+
+        if (isLive) {
+          this.liveDiscovery.connect();
+        } else {
+          this.liveDiscovery.disconnect();
+        }
+
         this.cdr.detectChanges();
       }
     });

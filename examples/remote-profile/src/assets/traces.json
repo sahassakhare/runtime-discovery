@@ -1,0 +1,23 @@
+[
+    {
+        "timestamp": "2026-01-17T10:05:00",
+        "method": "GET",
+        "uri": "/profile/123",
+        "status": 200,
+        "timeTaken": "20ms"
+    },
+    {
+        "timestamp": "2026-01-17T10:06:00",
+        "method": "PUT",
+        "uri": "/profile/123",
+        "status": 204,
+        "timeTaken": "50ms"
+    },
+    {
+        "timestamp": "2026-01-17T10:07:00",
+        "method": "GET",
+        "uri": "/profile/999",
+        "status": 404,
+        "timeTaken": "15ms"
+    }
+]

@@ -33,4 +33,36 @@ export class DashboardService {
     getRuntime(): Observable<any[]> {
         return this.http.get<any[]>(`${this.apiUrl}/runtime`);
     }
+
+    getMfeDetails(name: string): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/mfe/${name}/details`);
+    }
+
+    getDependencyGraph(): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/dependency-graph`);
+    }
+
+    lockVersion(mfeName: string, version: string, environment: string = 'PRODUCTION', locked: boolean = true): Observable<any> {
+        return this.http.post(`${this.apiUrl.replace('/dashboard', '')}/deployments/lock`, { mfeName, version, environment, locked });
+    }
+
+    getMfeMetrics(name: string): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/mfe/${name}/metrics`);
+    }
+
+    getMfeEnv(name: string): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/mfe/${name}/env`);
+    }
+
+    getMfeLogs(name: string): Observable<string[]> {
+        return this.http.get<string[]>(`${this.apiUrl}/mfe/${name}/logs`);
+    }
+
+    getMfeThreads(name: string): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/mfe/${name}/threads`);
+    }
+
+    getMfeTraces(name: string): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/mfe/${name}/traces`);
+    }
 }

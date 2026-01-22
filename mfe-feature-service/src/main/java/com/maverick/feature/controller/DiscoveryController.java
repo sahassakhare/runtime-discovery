@@ -1,11 +1,11 @@
 package com.maverick.feature.controller;
 
-import com.maverick.feature.domain.Microfrontend;
-import com.maverick.feature.domain.Version;
+import com.maverick.feature.domain.MfeApplication;
+import com.maverick.feature.domain.MfeApplicationVersion;
 import com.maverick.feature.dto.ResolutionRequest;
 import com.maverick.feature.dto.ResolutionResponse;
-import com.maverick.feature.repository.MicrofrontendRepository;
-import com.maverick.feature.repository.VersionRepository;
+import com.maverick.feature.repository.MfeApplicationRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ff4j.FF4j;
@@ -33,7 +33,9 @@ public class DiscoveryController {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DiscoveryController.class);
 
-    private final MicrofrontendRepository mfeRepository;
+    private final MfeApplicationRepository mfeRepository;
+    private final com.maverick.feature.repository.MfeApplicationVersionRepository versionRepository;
+
     private final com.maverick.feature.repository.DeploymentRepository deploymentRepository; // Injected
     private final FF4j ff4j;
     private final OpenFeatureAPI openFeatureAPI;
@@ -184,6 +186,16 @@ public class DiscoveryController {
             deploymentOpt = deploymentRepository.findActiveByTenant(remoteName, env, tenantId);
         }
 
+        // Priority 0: LOCKED Deployment (Operational Override)
+        // Check for manual overrides that bypass standard rules
+        if (deploymentOpt.isEmpty()) {
+            deploymentOpt = deploymentRepository.findLocked(remoteName, env);
+            if (deploymentOpt.isPresent()) {
+                log.warn("LOCKED DEPLOYMENT DETECTED: Forced resolution to {}",
+                        deploymentOpt.get().getVersion().getVersion());
+            }
+        }
+
         // Priority 2: Global Deployment (Fallthrough)
         if (deploymentOpt.isEmpty()) {
             deploymentOpt = deploymentRepository.findActiveGlobal(remoteName, env);
@@ -194,7 +206,7 @@ public class DiscoveryController {
         }
 
         com.maverick.feature.domain.Deployment deployment = deploymentOpt.get();
-        Version selectedVersion = deployment.getVersion();
+        MfeApplicationVersion selectedVersion = deployment.getVersion();
 
         log.info("TRACE-LOG: Initial Selection. Env={}, Tenant={}, SelectedVer={}", env, tenantId,
                 selectedVersion.getVersion());
@@ -204,7 +216,7 @@ public class DiscoveryController {
         // provide self for safety)
         Optional<com.maverick.feature.domain.Deployment> fallbackOpt = deploymentRepository.findActiveGlobal(remoteName,
                 com.maverick.feature.domain.Environment.PRODUCTION);
-        Version fallbackVersion = fallbackOpt.map(com.maverick.feature.domain.Deployment::getVersion)
+        MfeApplicationVersion fallbackVersion = fallbackOpt.map(com.maverick.feature.domain.Deployment::getVersion)
                 .orElse(selectedVersion);
 
         log.info("TRACE-LOG: Fallback. Ver={}", fallbackVersion.getVersion());
@@ -221,12 +233,15 @@ public class DiscoveryController {
         if (tenantId != null)
             evaluationContext.add(com.maverick.feature.domain.FeatureContextKeys.TENANT_ID, tenantId);
 
-        Microfrontend mfe = selectedVersion.getMicrofrontend();
-        if (mfe.getFeatureGroupName() != null) {
-            try {
-                Map<String, org.ff4j.core.Feature> groupFeatures = ff4j.getFeatureStore()
-                        .readGroup(mfe.getFeatureGroupName());
+        MfeApplication mfe = selectedVersion.getApplication();
+        // Simplified feature group name logic for now, or we could add it to
+        // metadata/tags
+        String featureGroupName = mfe.getName();
+        try {
+            Map<String, org.ff4j.core.Feature> groupFeatures = ff4j.getFeatureStore()
+                    .readGroup(featureGroupName);
 
+            if (groupFeatures != null) {
                 for (org.ff4j.core.Feature f : groupFeatures.values()) {
                     boolean isEnabled = openFeatureAPI.getClient().getBooleanValue(f.getUid(), false,
                             evaluationContext);
@@ -252,9 +267,9 @@ public class DiscoveryController {
                         }
                     }
                 }
-            } catch (Exception e) {
-                log.warn("Failed to resolve features for group '{}': {}", mfe.getFeatureGroupName(), e.getMessage());
             }
+        } catch (Exception e) {
+            log.warn("Failed to resolve features for group '{}': {}", featureGroupName, e.getMessage());
         }
 
         // 2.2 Variant Swap Logic
@@ -334,8 +349,9 @@ public class DiscoveryController {
                 ctxConfig.getKeys().getUserId(), ctxConfig.getDefaults().getUserId());
 
         // Fetch available versions for discovery checks
-        List<String> availableVersions = mfeRepository.findByName(remoteName).map(Microfrontend::getVersions)
-                .map(vers -> vers.stream().map(Version::getVersion).toList())
+        List<String> availableVersions = mfeRepository.findByName(remoteName)
+                .map(MfeApplication::getVersions)
+                .map(vers -> vers.stream().map(MfeApplicationVersion::getVersion).toList())
                 .orElse(java.util.Collections.emptyList());
 
         com.maverick.feature.dto.governance.PolicyInput policyInput = com.maverick.feature.dto.governance.PolicyInput
@@ -346,7 +362,7 @@ public class DiscoveryController {
                 .channel(activeVariant != null ? activeVariant.getName().toLowerCase() : "stable")
                 .version(selectedVersion.getVersion())
                 .selectedVersion(selectedVersion.getVersion())
-                .remoteEntry(selectedVersion.getRemoteEntry())
+                .remoteEntry(selectedVersion.getMetadataValue("remoteEntry"))
                 .exposedModule("./Module") // Default for MFEs
                 .fallback(fallbackVersion.getVersion())
                 .route(request.getContext() != null ? String.valueOf(request.getContext().getOrDefault("route", "/"))
@@ -424,11 +440,11 @@ public class DiscoveryController {
         return ResponseEntity.ok(responseBuilder.build());
     }
 
-    private ResolutionResponse.RemoteVersion toRemoteVersion(Version version) {
+    private ResolutionResponse.RemoteVersion toRemoteVersion(MfeApplicationVersion version) {
         return ResolutionResponse.RemoteVersion.builder()
                 .version(version.getVersion())
-                .remoteEntry(version.getRemoteEntry())
-                .integrity(version.getIntegrity())
+                .remoteEntry(version.getMetadataValue("remoteEntry"))
+                .integrity(version.getMetadataValue("integrity"))
                 .build();
     }
 
@@ -471,5 +487,52 @@ public class DiscoveryController {
             }
         }
         return roles;
+    }
+
+    /* --- Version Toggling --- */
+    @PostMapping("/deployments/lock")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<String> lockVersion(@RequestBody Map<String, String> payload) {
+        String mfeName = payload.get("mfeName");
+        String version = payload.get("version");
+        String envStr = payload.getOrDefault("environment", "PRODUCTION");
+        com.maverick.feature.domain.Environment env = com.maverick.feature.domain.Environment.valueOf(envStr);
+        boolean shouldLock = Boolean.parseBoolean(payload.getOrDefault("locked", "true"));
+
+        // 1. Unlock any existing locked deployment for this MFE/Env
+        deploymentRepository.findLocked(mfeName, env).ifPresent(d -> {
+            d.setLocked(false);
+            deploymentRepository.save(d);
+        });
+
+        if (!shouldLock) {
+            return ResponseEntity.ok("Unlocked " + mfeName);
+        }
+
+        // 2. Lock specific version
+        // Find existing deployment or create new one
+        MfeApplicationVersion appVersion = versionRepository.findByApplicationNameAndVersion(mfeName, version)
+                .orElseThrow(() -> new RuntimeException("Version not found: " + version));
+
+        // Find standard active deployment for this version to upgrade it, OR create new
+        // one
+        Optional<com.maverick.feature.domain.Deployment> existing = deploymentRepository.findActiveGlobal(mfeName, env);
+
+        com.maverick.feature.domain.Deployment targetDeployment;
+
+        // If the active deployment is ALREADY this version, just lock it
+        if (existing.isPresent() && existing.get().getVersion().getId().equals(appVersion.getId())) {
+            targetDeployment = existing.get();
+        } else {
+            targetDeployment = new com.maverick.feature.domain.Deployment();
+            targetDeployment.setVersion(appVersion);
+            targetDeployment.setEnvironment(env);
+            targetDeployment.setActive(true);
+        }
+
+        targetDeployment.setLocked(true);
+        deploymentRepository.save(targetDeployment);
+
+        return ResponseEntity.ok("Locked " + mfeName + " to version " + version);
     }
 }

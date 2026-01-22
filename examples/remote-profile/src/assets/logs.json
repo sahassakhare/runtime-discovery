@@ -1,0 +1,6 @@
+[
+    "2026-01-17T10:00:00 [main] INFO  ProfileApplication - Starting Profile Service...",
+    "2026-01-17T10:00:02 [main] INFO  Database - Connected to user_db",
+    "2026-01-17T10:05:00 [http-nio-4201-exec-2] ERROR ProfileController - User id=55 not found",
+    "2026-01-17T10:06:00 [http-nio-4201-exec-5] INFO  ProfileController - Profile updated"
+]

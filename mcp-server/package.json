@@ -1,0 +1,19 @@
+{
+    "name": "mfe-mcp-server",
+    "version": "1.0.0",
+    "description": "MCP Server for MFE Orchestration",
+    "type": "module",
+    "main": "build/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node build/index.js"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^0.6.0",
+        "axios": "^1.7.9"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3"
+    }
+}

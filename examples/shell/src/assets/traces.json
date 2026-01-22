@@ -1,0 +1,30 @@
+[
+    {
+        "timestamp": "2026-01-17T10:05:00",
+        "method": "GET",
+        "uri": "/api/config",
+        "status": 200,
+        "timeTaken": "45ms"
+    },
+    {
+        "timestamp": "2026-01-17T10:05:05",
+        "method": "GET",
+        "uri": "/api/user",
+        "status": 200,
+        "timeTaken": "120ms"
+    },
+    {
+        "timestamp": "2026-01-17T10:05:10",
+        "method": "POST",
+        "uri": "/api/analytics",
+        "status": 202,
+        "timeTaken": "80ms"
+    },
+    {
+        "timestamp": "2026-01-17T10:06:00",
+        "method": "GET",
+        "uri": "/missing-resource",
+        "status": 404,
+        "timeTaken": "10ms"
+    }
+]

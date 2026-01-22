@@ -9,6 +9,8 @@ public class RegisterMfeRequest {
     // Additional metadata from plugin?
     private String type; // "var", "module", etc.
 
+    private java.util.List<ConsumedRemoteMetadata> consumedRemotes;
+
     public String getName() {
         return name;
     }
@@ -47,5 +49,43 @@ public class RegisterMfeRequest {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public java.util.List<ConsumedRemoteMetadata> getConsumedRemotes() {
+        return consumedRemotes;
+    }
+
+    public void setConsumedRemotes(java.util.List<ConsumedRemoteMetadata> consumedRemotes) {
+        this.consumedRemotes = consumedRemotes;
+    }
+
+    public static class ConsumedRemoteMetadata {
+        private String remoteName;
+        private String modules; // comma separated
+        private boolean dynamic;
+
+        public String getRemoteName() {
+            return remoteName;
+        }
+
+        public void setRemoteName(String remoteName) {
+            this.remoteName = remoteName;
+        }
+
+        public String getModules() {
+            return modules;
+        }
+
+        public void setModules(String modules) {
+            this.modules = modules;
+        }
+
+        public boolean isDynamic() {
+            return dynamic;
+        }
+
+        public void setDynamic(boolean dynamic) {
+            this.dynamic = dynamic;
+        }
     }
 }

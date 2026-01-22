@@ -17,6 +17,9 @@ export class SidebarComponent {
         { label: 'Overview', icon: 'dashboard', route: '/overview' },
         { label: 'Deployments', icon: 'layers', route: '/deployments' },
         { label: 'Resolution', icon: 'hub', route: '/resolution' },
+        { label: 'Runtime Stats', icon: 'bar_chart', route: '/runtime' },
+        { label: 'Ecosystem Pulse', icon: 'monitor_heart', route: '/ecosystem' },
+        { label: 'Dependencies', icon: 'account_tree', route: '/dependencies' },
         { label: 'Governance', icon: 'policy', route: '/governance' },
         { label: 'Settings', icon: 'settings', route: '/settings' }
     ];

@@ -1,0 +1,38 @@
+[
+    {
+        "id": 1,
+        "name": "main",
+        "state": "RUNNABLE",
+        "priority": 5
+    },
+    {
+        "id": 2,
+        "name": "Reference Handler",
+        "state": "WAITING",
+        "priority": 10
+    },
+    {
+        "id": 3,
+        "name": "Finalizer",
+        "state": "WAITING",
+        "priority": 8
+    },
+    {
+        "id": 4,
+        "name": "Signal Dispatcher",
+        "state": "RUNNABLE",
+        "priority": 9
+    },
+    {
+        "id": 10,
+        "name": "http-nio-4200-exec-1",
+        "state": "RUNNABLE",
+        "priority": 5
+    },
+    {
+        "id": 11,
+        "name": "http-nio-4200-exec-2",
+        "state": "BLOCKED",
+        "priority": 5
+    }
+]

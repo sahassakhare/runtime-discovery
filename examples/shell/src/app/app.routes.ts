@@ -1,12 +1,16 @@
 import { Routes } from '@angular/router';
 import { AppInjector } from './app-injector';
-import { REMOTE_CLIENT } from '../../../../src/runtime-discovery/tokens';
-import { RemoteClient } from '../../../../src/runtime-discovery/remote-client';
+import { REMOTE_CLIENT } from './core/runtime-discovery/tokens';
+import { RemoteClient } from './core/runtime-discovery/remote-client';
 import { loadRemoteModule } from '@angular-architects/module-federation';
 import { AuthService } from './auth.service';
 import { LiveProfileComponent } from './live-profile/live-profile.component';
 
 export const routes: Routes = [
+    {
+        path: 'agent',
+        loadComponent: () => import('./features/agent/agent-page.component').then(m => m.AgentPageComponent)
+    },
     {
         path: '',
         pathMatch: 'full',
@@ -20,11 +24,11 @@ export const routes: Routes = [
             const auth = AppInjector.get(AuthService);
 
             return client.loadRemoteModule(
-                'remote-profile',      // Registered name in DB/Governance Service
-                './ProfileComponent', // Exposed Key in webpack.config.js
+                'remote-profile',
+                './Profile', // Reverting to Standard Angular Component for Shell Demo
                 {
                     type: 'module',
-                    context: auth.getContext() // Dynamic Context Injection
+                    context: auth.getContext()
                 }
             ).then((m: any) => {
                 console.debug('[Shell] Remote profile component loaded successfully');

@@ -12,7 +12,7 @@ public class Deployment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "version_id", nullable = false)
-    private Version version;
+    private MfeApplicationVersion version;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -26,10 +26,13 @@ public class Deployment {
 
     private int weight; // 0-100
 
+    @Column(columnDefinition = "boolean default false")
+    private boolean isLocked;
+
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();
 
-    public Deployment(Version version, Environment environment, boolean active) {
+    public Deployment(MfeApplicationVersion version, Environment environment, boolean active) {
         this.version = version;
         this.environment = environment;
         this.active = active;
@@ -47,11 +50,11 @@ public class Deployment {
         this.id = id;
     }
 
-    public Version getVersion() {
+    public MfeApplicationVersion getVersion() {
         return version;
     }
 
-    public void setVersion(Version version) {
+    public void setVersion(MfeApplicationVersion version) {
         this.version = version;
     }
 
@@ -85,6 +88,14 @@ public class Deployment {
 
     public void setWeight(int weight) {
         this.weight = weight;
+    }
+
+    public boolean isLocked() {
+        return isLocked;
+    }
+
+    public void setLocked(boolean locked) {
+        isLocked = locked;
     }
 
     public LocalDateTime getCreatedAt() {

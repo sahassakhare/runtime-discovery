@@ -3,6 +3,9 @@ import { OverviewComponent } from './features/overview/overview.component';
 import { DeploymentComponent } from './features/deployment/deployment.component';
 import { SettingsComponent } from './features/settings/settings.component';
 import { ResolutionGraphComponent } from './features/resolution-graph/resolution-graph.component';
+import { RuntimeComponent } from './features/runtime/runtime.component';
+import { EcosystemPulseComponent } from './features/ecosystem-pulse/ecosystem-pulse.component';
+import { DependencyGraphComponent } from './features/dependency-graph/dependency-graph.component';
 
 export const routes: Routes = [
     {
@@ -26,6 +29,21 @@ export const routes: Routes = [
         title: 'Resolution Strategy'
     },
     {
+        path: 'runtime',
+        component: RuntimeComponent,
+        title: 'Runtime Metrics'
+    },
+    {
+        path: 'ecosystem',
+        component: EcosystemPulseComponent,
+        title: 'Ecosystem Pulse'
+    },
+    {
+        path: 'dependencies',
+        component: DependencyGraphComponent,
+        title: 'Dependency Graph'
+    },
+    {
         path: 'settings',
         component: SettingsComponent,
         title: 'Settings'
@@ -35,7 +53,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/governance/governance.component').then(m => m.GovernanceComponent),
         title: 'Governance'
     },
-    // Placeholder for Governance if we had a dedicated component
+    {
+        path: 'agent',
+        loadComponent: () => import('./features/agent/agent-page.component').then(m => m.AgentPageComponent),
+        title: 'AI Agent'
+    },
     {
         path: '**',
         redirectTo: 'overview'

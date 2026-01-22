@@ -106,6 +106,16 @@ This process:
 ###  Automatic Runtime Registration
 *   **Self-Discovery**: Applications automatically register themselves with the backend upon startup, building a live topology of the system.
 
+###  Remote Lifecycle Protocol
+To support advanced orchestration, the client enforces a strict lifecycle protocol for remotes. This allows the Shell to explicitly manage the **Initialization**, **Mounting**, and **Destruction** of microfrontends, preventing memory leaks and ensuring state consistency.
+
+| Hook | Type | Description |
+| :--- | :--- | :--- |
+| **`isReady()`** | `Promise<boolean>` | **Pre-Flight Check**. Called before loading. Use this to validate Governance constraints, check Feature Flags, or ensure backend health. |
+| **`mount(el, props)`** | `Promise<void>` | **Render**. The remote must render itself into the provided `HTMLElement` (`el`). It receives `props` (context/inputs) from the Host. |
+| **`unmount(el)`** | `Promise<void>` | **Cleanup**. The remote must destroy its application instance and clean up DOM listeners. Critical for SPA performance. |
+| **`dispose()`** | `Promise<void>` | **Global GC**. Optional hook to clear global caches or shared workers when the remote is evicted from the registry. |
+
 ---
 
 ## Installation

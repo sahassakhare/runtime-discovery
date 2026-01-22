@@ -1,0 +1,130 @@
+<div class="overview-container animate-entry">
+    <!-- Pulse Header -->
+    <div class="dashboard-header">
+        <div class="title-section">
+            <h2 class="widget-title">Mission Overview</h2>
+            <div class="sync-status">
+                <span class="pulse-dot"></span>
+                <span>Real-time sync active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Hub -->
+    <div class="stats-grid">
+        <mat-card class="widget-card s-border" *ngIf="stats() as s; else loadingStats">
+            <div class="widget-icon primary">
+                <mat-icon>layers</mat-icon>
+            </div>
+            <div class="widget-content">
+                <span class="widget-label">Total Microfrontends</span>
+                <div class="widget-value-row">
+                    <span class="widget-value">{{ s.totalMfes }}</span>
+                    <span class="trend up">
+                        <mat-icon>trending_up</mat-icon>
+                        12%
+                    </span>
+                </div>
+            </div>
+        </mat-card>
+
+        <mat-card class="widget-card s-border" *ngIf="stats() as s">
+            <div class="widget-icon success">
+                <mat-icon>code</mat-icon>
+            </div>
+            <div class="widget-content">
+                <span class="widget-label">Active Versions</span>
+                <div class="widget-value-row">
+                    <span class="widget-value">{{ s.activeVersions }}</span>
+                    <span class="trend neutral">Stable</span>
+                </div>
+            </div>
+        </mat-card>
+
+        <mat-card class="widget-card s-border" *ngIf="stats() as s">
+            <div class="widget-icon warning">
+                <mat-icon>speed</mat-icon>
+            </div>
+            <div class="widget-content">
+                <span class="widget-label">Avg Performance</span>
+                <div class="widget-value-row">
+                    <span class="widget-value">{{ s.avgLighthouseScore }}%</span>
+                    <span class="trend up">
+                        <mat-icon>trending_up</mat-icon>
+                        0.5%
+                    </span>
+                </div>
+                <mat-progress-bar mode="determinate" [value]="s.avgLighthouseScore"
+                    class="mini-progress"></mat-progress-bar>
+            </div>
+        </mat-card>
+    </div>
+
+    <!-- Analytics & Ops -->
+    <div class="dashboard-layout">
+        <div class="main-column">
+            <mat-card class="container-card s-border">
+                <div class="card-header">
+                    <div class="header-titles">
+                        <h3>Runtime Health Matrix</h3>
+                        <p>Global instance monitoring and error rates</p>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <app-runtime></app-runtime>
+                </div>
+            </mat-card>
+
+            <mat-card class="container-card s-border">
+                <div class="card-header">
+                    <div class="header-titles">
+                        <h3>Active Deployments</h3>
+                        <p>Production cluster states</p>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <app-deployment></app-deployment>
+                </div>
+            </mat-card>
+        </div>
+
+        <div class="side-column">
+            <mat-card class="container-card s-border">
+                <div class="card-header">
+                    <h3>Resolution Tree</h3>
+                </div>
+                <div class="card-body">
+                    <app-resolution-graph remoteName="remote-profile"></app-resolution-graph>
+                </div>
+            </mat-card>
+
+            <mat-card class="container-card s-border governance-widget">
+                <div class="card-header">
+                    <h3>Governance Compliance</h3>
+                </div>
+                <div class="card-body p-0">
+                    <mat-list class="governance-list">
+                        <mat-list-item *ngFor="let g of governance()" class="gov-item">
+                            <mat-icon matListItemIcon [class]="'status-icon ' + g.status.toLowerCase()">
+                                {{ g.status === 'PASS' ? 'check_circle' : g.status === 'WARN' ? 'warning' : 'cancel' }}
+                            </mat-icon>
+                            <div matListItemTitle class="gov-title">{{ g.check }}</div>
+                            <div matListItemLine>
+                                <span class="status-badge" [class]="g.status.toLowerCase()">{{ g.status }}</span>
+                            </div>
+                        </mat-list-item>
+                    </mat-list>
+                </div>
+            </mat-card>
+        </div>
+    </div>
+</div>
+
+<ng-template #loadingStats>
+    <mat-card class="widget-card s-border" *ngFor="let i of [1,2,3]">
+        <div class="widget-content">
+            <app-skeleton width="60%" height="16px"></app-skeleton>
+            <app-skeleton width="40%" height="32px" style="margin-top: 12px"></app-skeleton>
+        </div>
+    </mat-card>
+</ng-template>

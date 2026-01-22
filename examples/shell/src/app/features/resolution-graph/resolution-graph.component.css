@@ -1,0 +1,136 @@
+:host {
+    display: block;
+}
+
+.graph-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem 0;
+    position: relative;
+}
+
+/* Common node styles */
+.node {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    border: 1px solid transparent;
+    backdrop-filter: blur(4px);
+    z-index: 2;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.node:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Layer specific node styles */
+.node.root {
+    background: var(--bg-panel);
+    border-color: var(--border-focus);
+    color: var(--text-primary);
+    min-width: 120px;
+}
+
+.node.strategy {
+    background: rgba(59, 130, 246, 0.15);
+    /* Primary tint */
+    border-color: var(--primary);
+    color: var(--primary);
+    min-width: 180px;
+    border-style: dashed;
+}
+
+.node.version {
+    background: var(--bg-card);
+    border-color: var(--border-subtle);
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+}
+
+.node.version.active {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: var(--success);
+    color: var(--success);
+}
+
+/* Layout Levels */
+.level {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    position: relative;
+    width: 100%;
+}
+
+.level.versions {
+    gap: 3rem;
+    /* More space for leaves */
+}
+
+/* Connectors */
+.connector-vertical {
+    width: 2px;
+    height: 2.5rem;
+    background: var(--border-focus);
+    margin: 0.5rem 0;
+    position: relative;
+}
+
+/* Arrowhead */
+.connector-vertical::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -3px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid var(--border-focus);
+}
+
+/* Branching lines for versions */
+.branch-container {
+    display: flex;
+    justify-content: center;
+    position: relative;
+    width: 100%;
+    padding-top: 1.5rem;
+    /* space for the horizontal bar */
+}
+
+/* The horizontal bar spanning the children */
+.branch-bar {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 2px;
+    background: var(--border-focus);
+    width: 200px;
+    /* Approximate width to cover children */
+}
+
+/* Vertical line from strategy to branch bar */
+.strategy-connector {
+    width: 2px;
+    height: 1.5rem;
+    background: var(--border-focus);
+    margin: 0 auto;
+}
+
+/* Vertical lines from branch bar to children */
+.leaf-connector {
+    position: absolute;
+    top: -1.5rem;
+    left: 50%;
+    height: 1.5rem;
+    width: 2px;
+    background: var(--border-focus);
+}
