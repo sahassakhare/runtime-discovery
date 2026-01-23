@@ -124,67 +124,108 @@ To support advanced orchestration, the client enforces a strict lifecycle protoc
 npm install @maverick/runtime-discovery
 ```
 
-## Usage
+## Usage & Patterns
 
-### 1. Configuration (Angular)
+### 1. Configuration (Global)
 
-Integrate with Angular's dependency injection system using `provideDiscovery`.
+Initialize the discovery strategy at the root of your application (e.g., `app.config.ts`). This sets the baseline identity and environment for all subsequent calls.
 
-**`src/app/app.config.ts`**:
 ```typescript
-import { ApplicationConfig } from '@angular/core';
 import { provideDiscovery } from '@maverick/runtime-discovery';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideDiscovery({
-      url: 'https://api.example.com',
-      appName: 'shell-ui',
-      environment: 'production', // 'development' | 'staging' | 'production'
-      tenantId: 'acme-corp'      // Optional: Multi-tenant context
+      url: 'http://localhost:8081/api', // Discovery Service URL
+      appName: 'shell',                 // MUST match the registered remote name
+      environment: 'production',        // 'development' | 'staging' | 'production'
+      tenantId: 'acme-corp'             // Optional: Multi-tenant context
     })
   ]
 };
 ```
 
-### 2. Live Discovery Service (Hot Swapping)
+### 2. Route-Based Microfrontends (Lazy Loading)
 
-The `LiveDiscoveryService` expects an SSE endpoint at `/api/stream`. It automatically connects and manages the lifecycle of all microfrontends on the page.
-
-**No additional code required**—simply using the `MfeHostComponent` or `RemoteClient` registers the remote for updates.
-
-### 3. Loading Microfrontends
-
-#### Option A: Routing (Lazy Loading)
-
-Load a full microfrontend module when a route is activated.
+The most common pattern is mapping a specific route to a remote microfrontend. This ensures the bundle is only downloaded when the user navigates to that path.
 
 ```typescript
-import { inject } from '@angular/core';
-import { Routes } from '@angular/router';
-import { REMOTE_CLIENT } from '@maverick/runtime-discovery';
+import { loadRemoteModule } from '@maverick/runtime-discovery';
 
 export const routes: Routes = [
-  {
-    path: 'profile',
-    // Dynamically resolves metadata, then loads the bundle
-    loadChildren: () => inject(REMOTE_CLIENT).loadRemoteModule('remote-profile', './ProfileModule')
-  }
+    {
+        path: 'profile',
+        // 'profile' = registered remote name in Backend
+        // './Profile' = exposed module name in Remote's webpack config
+        loadComponent: () => 
+            loadRemoteModule('profile', './Profile', { type: 'module' })
+                .then(m => m.ProfileComponent)
+                .catch(err => {
+                    console.error('Fallback/Error Page', err);
+                    return import('./fallback.component').then(m => m.FallbackComponent);
+                })
+    }
 ];
 ```
 
-#### Option B: Component (Dynamic Widget)
+### 3. Dynamic Widgets (Manual Loading)
 
-Embed a microfrontend anywhere in your template using the Host Component.
+For dashboard widgets or modal content where routing isn't applicable, use `loadRemoteModule` directly within a component.
 
-```html
-<!-- src/app/dashboard.component.html -->
-<mfe-host 
-    remoteName="remote-profile" 
-    exposedModule="./UserProfile" 
-    [inputs]="{ userId: 123 }">
-</mfe-host>
+```typescript
+@Component({ ... })
+export class DashboardComponent implements OnInit {
+  container = viewChild('container', { read: ViewContainerRef });
+
+  async loadWidget() {
+    try {
+      const module = await loadRemoteModule('remote-analytics', './WeeklyChart', { type: 'module' });
+      this.container().createComponent(module.WeeklyChartComponent);
+    } catch (e) {
+      console.error('Widget unavailable', e);
+    }
+  }
+}
 ```
+
+### 4. Handling Governance & Security Events
+
+The library emits global window events when policy actions occur (e.g., a remote is blocked by OPA constraints or flagged for security).
+
+```typescript
+// Listen for Governance Alerts
+window.addEventListener('maverick:governance_alert', (event: CustomEvent) => {
+  const { remoteName, reason, timestamp } = event.detail;
+  console.warn(`[Security] Access to ${remoteName} modified due to: ${reason}`);
+  
+  // Example: Show a toast notification to the user
+  this.toastService.showWarning(`Policy Limited: ${reason}`);
+});
+
+// Listen for Feature Flag Updates
+window.addEventListener('maverick:flags_updated', (event: CustomEvent) => {
+  const flags = event.detail;
+  if (flags['global.maintenance-mode']) {
+    this.router.navigate(['/maintenance']);
+  }
+});
+```
+
+### 5. Multi-Version Testing (Canary/A/B)
+
+To force a specific variant (e.g., for testing a Canary release explicitly), you can pass a custom `context`. The backend uses this context to resolve the appropriate version.
+
+```typescript
+loadRemoteModule('profile', './Profile', {
+  type: 'module',
+  context: {
+    // Explicitly request beta features if allowed by policy
+    'user.role': 'beta-tester',
+    'feature.new-ui': true 
+  }
+});
+```
+
 
 ---
 
