@@ -24,6 +24,14 @@ let globalDiscovery: RuntimeDiscovery | null = null;
 let globalMonitoring: MonitoringService | undefined = undefined;
 let globalConfig: { appName: string; environment: string; apiUrl: string } | null = null;
 
+/**
+ * Sets the global runtime strategy for the library.
+ * This is internally called by `provideDiscovery()` during app initialization.
+ * 
+ * @param discovery - The strategy implementation (e.g. HTTP-based discovery)
+ * @param config - Global identity configuration (appName, env, apiUrl)
+ * @param monitoring - Optional monitoring service for uptime tracking
+ */
 export function setDiscoveryStrategy(
   discovery: RuntimeDiscovery,
   config: { appName: string; environment: string; apiUrl: string },
@@ -34,6 +42,27 @@ export function setDiscoveryStrategy(
   globalMonitoring = monitoring;
 }
 
+/**
+ * Loads a remote module/component with full enterprise capabilities:
+ * - **Discovery**: Resolves the best version based on Tenant/Env/Context.
+ * - **Security**: Checks Integrity (SRI) and Governance policies.
+ * - **Telemetry**: Reports consumption to the dashboard.
+ * - **Resilience**: Automatically retries or falls back to stable versions on failure.
+ * 
+ * @example
+ * ```typescript
+ * const m = await loadRemoteModule('profile', './Profile', { 
+ *   type: 'module',
+ *   context: { 'user.role': 'beta' }
+ * });
+ * ```
+ * 
+ * @param remoteName - The registered name of the remote app (e.g. 'profile')
+ * @param exposedModule - The exposed key in the remote's generic configuration (e.g. './Profile')
+ * @param options - Configuration for loading (context, type, retries)
+ * @returns A Promise resolving to the loaded module exports
+ * @throws Error if the remote cannot be resolved or loaded after fallbacks
+ */
 export async function loadRemoteModule<T = any>(
   remoteName: string,
   exposedModule: string,

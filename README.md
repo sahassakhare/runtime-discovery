@@ -145,9 +145,11 @@ export const appConfig: ApplicationConfig = {
 };
 ```
 
-### 2. Route-Based Microfrontends (Lazy Loading)
+### 2. Route-Based Microfrontends (Robust Loading)
 
-The most common pattern is mapping a specific route to a remote microfrontend. This ensures the bundle is only downloaded when the user navigates to that path.
+When loading a remote via Angular Router, it is **critical** to handle potential loading failures (e.g., network error, version incompatibility, or 404).
+
+Use the following pattern to catch errors and re-throw them or redirect:
 
 ```typescript
 import { loadRemoteModule } from '@maverick/runtime-discovery';
@@ -155,14 +157,18 @@ import { loadRemoteModule } from '@maverick/runtime-discovery';
 export const routes: Routes = [
     {
         path: 'profile',
-        // 'profile' = registered remote name in Backend
-        // './Profile' = exposed module name in Remote's webpack config
-        loadComponent: () => 
+        loadComponent: () =>
             loadRemoteModule('profile', './Profile', { type: 'module' })
-                .then(m => m.ProfileComponent)
+                .then((m: any) => m.ProfileComponent)
                 .catch(err => {
-                    console.error('Fallback/Error Page', err);
-                    return import('./fallback.component').then(m => m.FallbackComponent);
+                    // CRITICAL: Log and handle the error
+                    console.error('Failed to load profile remote:', err);
+                    
+                    // Option A: Re-throw to let Angular Router handle it (e.g., ErrorHandler)
+                    throw err;
+
+                    // Option B: Return a Fallback Component directly
+                    // return import('./features/fallback/error.component').then(m => m.ErrorComponent);
                 })
     }
 ];
@@ -183,6 +189,7 @@ export class DashboardComponent implements OnInit {
       this.container().createComponent(module.WeeklyChartComponent);
     } catch (e) {
       console.error('Widget unavailable', e);
+      // Render skeleton or empty state
     }
   }
 }
@@ -193,7 +200,7 @@ export class DashboardComponent implements OnInit {
 The library emits global window events when policy actions occur (e.g., a remote is blocked by OPA constraints or flagged for security).
 
 ```typescript
-// Listen for Governance Alerts
+// Listen for Governance Alerts (e.g., Blocked by Policy)
 window.addEventListener('maverick:governance_alert', (event: CustomEvent) => {
   const { remoteName, reason, timestamp } = event.detail;
   console.warn(`[Security] Access to ${remoteName} modified due to: ${reason}`);
@@ -202,16 +209,22 @@ window.addEventListener('maverick:governance_alert', (event: CustomEvent) => {
   this.toastService.showWarning(`Policy Limited: ${reason}`);
 });
 
-// Listen for Feature Flag Updates
+// Listen for Feature Flag Updates (e.g., Real-time toggle)
 window.addEventListener('maverick:flags_updated', (event: CustomEvent) => {
   const flags = event.detail;
   if (flags['global.maintenance-mode']) {
     this.router.navigate(['/maintenance']);
   }
 });
+
+// Listen for Variant Loading (e.g., A/B Test assignment)
+window.addEventListener('maverick:variant_loaded', (event: CustomEvent) => {
+   const { remoteName, resolutionContext } = event.detail;
+   console.log(`Assigned to variant: ${resolutionContext.variant.name}`);
+});
 ```
 
-### 5. Multi-Version Testing (Canary/A/B)
+### 5. Multi-Version Testing (Context Propagation)
 
 To force a specific variant (e.g., for testing a Canary release explicitly), you can pass a custom `context`. The backend uses this context to resolve the appropriate version.
 
@@ -224,6 +237,30 @@ loadRemoteModule('profile', './Profile', {
     'feature.new-ui': true 
   }
 });
+```
+
+### 6. Framework-Agnostic Lifecycle Protocol
+
+For non-Angular remotes (e.g., React/Vue wrapped as Web Components), the library supports a standardized lifecycle interface.
+
+```typescript
+// Remote Entry (exposed module)
+export default {
+    async mount(container: HTMLElement, props: any) {
+        // Render React/Vue app
+        ReactDOM.createRoot(container).render(<App {...props} />);
+    },
+    async unmount(container: HTMLElement) {
+        // Cleanup
+        ReactDOM.unmountComponentAtNode(container);
+    }
+}
+```
+
+Host Usage:
+```typescript
+const remote = await loadRemoteModule('react-widget', './Widget', { type: 'module' });
+await remote.mount(document.getElementById('widget-container'), { user: '123' });
 ```
 
 

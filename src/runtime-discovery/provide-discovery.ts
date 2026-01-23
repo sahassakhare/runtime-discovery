@@ -5,10 +5,27 @@ import { DiscoveryConfig, RuntimeDiscovery } from './types';
 import { REMOTE_CLIENT, DISCOVERY_CONFIG, RUNTIME_DISCOVERY } from './tokens';
 
 /**
- * Provides the RemoteClient and its dependencies.
+ * Initializes the Maverick Runtime Discovery system.
+ * This provider must be added to your application's bootstrap configuration (e.g. `app.config.ts`).
+ * 
+ * It sets up:
+ * 1. Global Identity (appName, environment)
+ * 2. Self-Registration (registers this app with the dashboard)
+ * 3. RemoteClient (centralized loader)
+ * 
+ * @example
+ * ```typescript
+ * providers: [
+ *   provideDiscovery({
+ *     url: 'http://discovery.acme.com',
+ *     appName: 'host-shell',
+ *     environment: 'production'
+ *   })
+ * ]
+ * ```
  *
- * @param config - The configuration for the discovery service.
- * @returns An EnvironmentProviders object.
+ * @param config - Configuration object containing Discovery URL and Identity
+ * @returns An EnvironmentProviders object compatible with `bootstrapApplication`
  */
 export function provideDiscovery(config: DiscoveryConfig): EnvironmentProviders {
     return makeEnvironmentProviders([
