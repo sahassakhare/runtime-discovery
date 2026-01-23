@@ -52,6 +52,8 @@
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/GovernancePolicySyncService.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/GovernanceService.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/OrchestrationService.java
+/Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/RegistryService.java
+/Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/impl/RegistryServiceImpl.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/llm/GeminiClient.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/llm/GeminiRequest.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/service/llm/GeminiResponse.java

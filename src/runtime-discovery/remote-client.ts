@@ -122,7 +122,7 @@ export async function loadRemoteModule<T = any>(
 
     // Dynamic Telemetry Reporting
     if (globalConfig) {
-      fetch(`${globalConfig.apiUrl}/dashboard/telemetry/consumption`, {
+      fetch(`${globalConfig.apiUrl}/registry/consumption`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

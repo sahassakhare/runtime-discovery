@@ -12,4 +12,6 @@ public interface MfeApplicationVersionRepository extends JpaRepository<MfeApplic
     java.util.Optional<MfeApplicationVersion> findTopByApplicationIdOrderByCreatedAtDesc(Long applicationId);
 
     java.util.Optional<MfeApplicationVersion> findByApplicationIdAndVersion(Long applicationId, String version);
+
+    java.util.Optional<MfeApplicationVersion> findByApplicationNameAndVersion(String appName, String version);
 }

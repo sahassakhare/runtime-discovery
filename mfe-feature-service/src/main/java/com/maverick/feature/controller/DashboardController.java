@@ -428,43 +428,6 @@ public class DashboardController {
                 return ResponseEntity.ok("Registered " + request.getName() + "@" + request.getVersion());
         }
 
-        @PostMapping("/telemetry/consumption")
-        @Transactional
-        public ResponseEntity<String> reportConsumption(@RequestBody java.util.Map<String, Object> report) {
-                String consumer = (String) report.get("consumer");
-                String remote = (String) report.get("remote");
-                String modules = (String) report.get("modules");
-                String env = (String) report.get("environment");
-
-                log.info("Runtime Consumption Report: {} consuming {} (modules: {}) in {}", consumer, remote, modules,
-                                env);
-
-                // Find active version for consumer
-                Optional<com.maverick.feature.domain.Deployment> dep = deploymentRepository
-                                .findActiveGlobal(consumer, com.maverick.feature.domain.Environment.PRODUCTION);
-
-                if (dep.isPresent()) {
-                        // Check for existing record to verify idempotency
-                        java.util.Optional<MfeConsumedRemote> existing = consumedRemoteRepository
-                                        .findByConsumerVersionIdAndRemoteName(dep.get().getVersion().getId(), remote);
-
-                        if (existing.isPresent()) {
-                                return ResponseEntity.ok("Already Reported");
-                        }
-
-                        MfeConsumedRemote consumed = new MfeConsumedRemote();
-                        consumed.setConsumerVersion(dep.get().getVersion());
-                        consumed.setRemoteName(remote);
-                        consumed.setUsedModules(modules);
-                        consumed.setDynamic(true);
-                        consumed.setEnvironment(env);
-                        consumedRemoteRepository.save(consumed);
-                        return ResponseEntity.ok("Reported");
-                }
-
-                return ResponseEntity.status(404).body("Consumer not found or no active deployment");
-        }
-
         @GetMapping("/dependency-graph")
         @Transactional(readOnly = true)
         public ResponseEntity<Object> getDependencyGraph() {
