@@ -376,12 +376,11 @@ public class DiscoveryController {
                         .build())
                 .features(convertRef(flags))
                 .availableVersions(availableVersions)
-                .metrics(Map.of("errorRate", 0.02, "p95LoadMs", 450.0)) // Telemetry usually comes from Monitoring, not
-                                                                        // Client Request
-                .requires(Map.of("angular", "17.0.0", "rxjs", "7.8.0")) // Simulated Manifest
-                .host(Map.of("angular", "17.0.0", "rxjs", "7.8.0")) // Host Runtime
-                .designTokens(Map.of("version", "2.1.0"))
-                .accessibility(Map.of("wcag", "2.1"))
+                .metrics(new java.util.HashMap<>(java.util.Map.of("errorRate", 0.02, "p95LoadMs", 450.0)))
+                .requires(new java.util.HashMap<>(java.util.Map.of("angular", "17.0.0", "rxjs", "7.8.0")))
+                .host(new java.util.HashMap<>(java.util.Map.of("angular", "17.0.0", "rxjs", "7.8.0")))
+                .designTokens(new java.util.HashMap<>(java.util.Map.of("version", "2.1.0")))
+                .accessibility(new java.util.HashMap<>(java.util.Map.of("wcag", "2.1")))
                 .build();
 
         com.maverick.feature.dto.governance.GovernanceResult governanceResult;
