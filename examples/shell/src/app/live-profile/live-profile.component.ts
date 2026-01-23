@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MfeHostComponent } from '../core/runtime-discovery/mfe-host.component';
+import { MfeHostComponent } from '@maverick/runtime-discovery';
 
 @Component({
   selector: 'app-live-profile',

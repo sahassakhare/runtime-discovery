@@ -8,7 +8,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "ng-packagr -p ng-package.json",
     "test": "vitest",
     "lint": "eslint 'src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'"
@@ -23,6 +23,8 @@
   "devDependencies": {
     "@angular-architects/module-federation": "^20.0.0",
     "@angular/common": "^20.0.0",
+    "@angular/compiler": "^21.1.1",
+    "@angular/compiler-cli": "^21.1.1",
     "@angular/core": "^20.0.0",
     "@angular/platform-browser": "^20.0.0",
     "@angular/platform-browser-dynamic": "^20.0.0",
@@ -30,9 +32,10 @@
     "@types/node": "^22.0.0",
     "eslint": "^9.0.0",
     "happy-dom": "^20.0.11",
+    "ng-packagr": "^21.1.0",
     "prettier": "^3.0.0",
     "rxjs": "~7.8.0",
-    "typescript": "~5.8.0",
+    "typescript": "^5.9.3",
     "vite": "^5.0.0",
     "vitest": "^1.0.0",
     "zone.js": "~0.14.3"

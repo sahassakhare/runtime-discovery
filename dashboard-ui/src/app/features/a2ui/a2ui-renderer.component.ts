@@ -1,13 +1,13 @@
 import { Component, Input, OnInit, OnChanges, SimpleChanges, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Component as A2Component } from '../../core/services/orchestration-client.service';
-import { MfeHostComponent } from '../../core/runtime-discovery/mfe-host.component';
+import { MfeHostComponent } from '@maverick/runtime-discovery';
 
 @Component({
-    selector: 'a2ui-renderer',
-    standalone: true,
-    imports: [CommonModule, MfeHostComponent, forwardRef(() => A2uiRendererComponent)],
-    template: `
+  selector: 'a2ui-renderer',
+  standalone: true,
+  imports: [CommonModule, MfeHostComponent, forwardRef(() => A2uiRendererComponent)],
+  template: `
     <div class="debug-info text-xs text-gray-400 p-1 border border-dashed mb-2" *ngIf="false">
         DEBUG: {{ node.type }}
     </div>
@@ -51,10 +51,10 @@ import { MfeHostComponent } from '../../core/runtime-discovery/mfe-host.componen
   `
 })
 export class A2uiRendererComponent {
-    @Input() node!: A2Component;
-    @Input() componentMap!: Map<string, A2Component>;
+  @Input() node!: A2Component;
+  @Input() componentMap!: Map<string, A2Component>;
 
-    lookup(id: string): A2Component {
-        return this.componentMap.get(id)!;
-    }
+  lookup(id: string): A2Component {
+    return this.componentMap.get(id)!;
+  }
 }

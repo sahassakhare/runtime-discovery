@@ -109,12 +109,16 @@ export async function loadRemoteModule<T = any>(
     // Filter out custom options to avoid type errors with the library function
     const { retries: _r, context: _c, ...cleanOptions } = options;
 
-    return await loadRemoteModuleFn({
+    const loadOptions = {
       ...cleanOptions,
       type: remoteType,
       remoteEntry: versionInfo.remoteEntry,
       exposedModule: exposedModule
-    } as LoadRemoteModuleOptions);
+    } as LoadRemoteModuleOptions;
+
+    console.debug('[Maverick] Calling loadRemoteModuleFn with:', JSON.stringify(loadOptions));
+
+    return await loadRemoteModuleFn(loadOptions);
   };
 
   try {

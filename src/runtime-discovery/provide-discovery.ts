@@ -1,8 +1,8 @@
-import { EnvironmentProviders, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
-import { HttpRuntimeDiscovery, registerApplication } from './runtime-discovery';
-import { RemoteClient } from './remote-client';
-import { DiscoveryConfig } from './types';
-import { REMOTE_CLIENT, DISCOVERY_CONFIG } from './tokens';
+import { EnvironmentProviders, makeEnvironmentProviders, provideAppInitializer, inject } from '@angular/core';
+import { runtimeDiscovery, registerApplication } from './runtime-discovery';
+import { RemoteClient, setDiscoveryStrategy } from './remote-client';
+import { DiscoveryConfig, RuntimeDiscovery } from './types';
+import { REMOTE_CLIENT, DISCOVERY_CONFIG, RUNTIME_DISCOVERY } from './tokens';
 
 /**
  * Provides the RemoteClient and its dependencies.
@@ -17,12 +17,22 @@ export function provideDiscovery(config: DiscoveryConfig): EnvironmentProviders 
             useValue: config
         },
         {
-            provide: REMOTE_CLIENT,
-            useFactory: () => {
-                const discovery = new HttpRuntimeDiscovery(config.url, config.environment, config.appName, config.tenantId);
-                return new RemoteClient(discovery);
-            }
+            provide: RUNTIME_DISCOVERY,
+            useFactory: () => runtimeDiscovery(config)
         },
-        provideAppInitializer(() => registerApplication(config))
+        {
+            provide: REMOTE_CLIENT,
+            useFactory: (discovery: RuntimeDiscovery) => new RemoteClient(discovery),
+            deps: [RUNTIME_DISCOVERY]
+        },
+        provideAppInitializer(() => {
+            const discovery = inject(RUNTIME_DISCOVERY);
+            setDiscoveryStrategy(discovery, {
+                appName: config.appName,
+                environment: config.environment,
+                apiUrl: config.url
+            });
+            registerApplication(config);
+        })
     ]);
 }

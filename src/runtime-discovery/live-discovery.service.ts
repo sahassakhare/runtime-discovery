@@ -1,7 +1,7 @@
 import { Injectable, OnDestroy, signal, computed, inject } from '@angular/core';
-import { HttpRuntimeDiscovery } from './runtime-discovery';
+import { runtimeDiscovery } from './runtime-discovery';
 import { DISCOVERY_CONFIG, CONTEXT_PROVIDER } from './tokens';
-import { DiscoveryConfig, ResolveRemoteResponse } from './types';
+import { DiscoveryConfig, ResolveRemoteResponse, RuntimeDiscovery } from './types';
 import { interval, Subscription, switchMap, retry, catchError, of } from 'rxjs';
 
 @Injectable({
@@ -18,15 +18,27 @@ export class LiveDiscoveryService implements OnDestroy {
     private remoteConfigs = signal<Map<string, ResolveRemoteResponse>>(new Map());
 
     // Dedicated discovery client for polling
-    private discoveryClient: HttpRuntimeDiscovery;
+    private discoveryClient: RuntimeDiscovery;
     private config = inject(DISCOVERY_CONFIG);
     private contextProvider = inject(CONTEXT_PROVIDER, { optional: true }); // Dynamic Context source
 
     constructor() {
-        this.discoveryClient = new HttpRuntimeDiscovery(this.config.url, this.config.environment, this.config.appName, this.config.tenantId);
+        this.discoveryClient = runtimeDiscovery(this.config);
 
         // Initialize SSE Connection
+        this.connect();
+    }
+
+    public connect() {
         this.connectSse();
+    }
+
+    public disconnect() {
+        if (this.eventSource) {
+            console.log('[LiveDiscovery] Disconnecting SSE stream...');
+            this.eventSource.close();
+            this.eventSource = undefined;
+        }
     }
 
     private connectSse() {

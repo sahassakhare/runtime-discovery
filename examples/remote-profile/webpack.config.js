@@ -13,11 +13,15 @@ const mfConfig = withModuleFederationPlugin({
 
 module.exports = {
     ...mfConfig,
+    experiments: {
+        outputModule: true
+    },
     output: {
         ...mfConfig.output,
         uniqueName: "profile",
         publicPath: "http://localhost:4201/",
-        scriptType: "text/javascript"
+        scriptType: "module",
+        library: { type: "module" }
     },
     plugins: [
         ...(mfConfig.plugins || []),

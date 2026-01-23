@@ -2,6 +2,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "baseUrl": "./",
     "outDir": "./dist/out-tsc",
     "strict": true,
     "noImplicitOverride": true,
@@ -25,6 +26,9 @@
     "paths": {
       "@angular/*": [
         "./node_modules/@angular/*"
+      ],
+      "@maverick/runtime-discovery": [
+        "../../dist"
       ]
     }
   },

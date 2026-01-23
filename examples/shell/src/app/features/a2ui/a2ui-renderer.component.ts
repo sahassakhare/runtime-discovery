@@ -1,7 +1,7 @@
 import { Component, Input, OnInit, OnChanges, SimpleChanges, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Component as A2Component } from '../../core/services/orchestration-client.service';
-import { MfeHostComponent } from '../../core/runtime-discovery/mfe-host.component';
+import { MfeHostComponent } from '@maverick/runtime-discovery';
 
 @Component({
   selector: 'a2ui-renderer',

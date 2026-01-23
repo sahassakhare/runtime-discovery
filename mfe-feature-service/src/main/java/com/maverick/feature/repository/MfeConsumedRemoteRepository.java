@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface MfeConsumedRemoteRepository extends CrudRepository<MfeConsumedRemote, Long> {
     List<MfeConsumedRemote> findByConsumerVersionId(Long versionId);
+
+    java.util.Optional<MfeConsumedRemote> findByConsumerVersionIdAndRemoteName(Long versionId, String remoteName);
 }

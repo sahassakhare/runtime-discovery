@@ -4,7 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { routes } from './app.routes';
 
-import { provideDiscovery } from './core/runtime-discovery/provide-discovery';
+import { provideDiscovery } from '@maverick/runtime-discovery';
 
 export const appConfig: ApplicationConfig = {
   providers: [

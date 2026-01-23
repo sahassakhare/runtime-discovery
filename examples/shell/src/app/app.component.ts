@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, Router, NavigationEnd } from '@angular/router';
 import { setAppInjector } from './app-injector';
 import { AuthService } from './auth.service';
-import { LiveDiscoveryService } from './core/runtime-discovery/live-discovery.service';
+import { LiveDiscoveryService } from '@maverick/runtime-discovery';
 
 @Component({
   selector: 'app-root',

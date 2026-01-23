@@ -384,11 +384,15 @@ public class DashboardController {
                                         newV = versionRepository.save(newV);
 
                                         // Add Metadata
+                                        // Add Metadata
                                         com.maverick.feature.domain.MfeMetadata meta = new com.maverick.feature.domain.MfeMetadata();
                                         meta.setApplicationVersion(newV);
                                         meta.setName("remoteEntry");
                                         meta.setValue(request.getRemoteEntry());
-                                        // Could also save integrity if needed
+
+                                        newV.getMetadata().add(meta);
+                                        newV = versionRepository.save(newV);
+
                                         return newV;
                                 });
 
@@ -440,6 +444,14 @@ public class DashboardController {
                                 .findActiveGlobal(consumer, com.maverick.feature.domain.Environment.PRODUCTION);
 
                 if (dep.isPresent()) {
+                        // Check for existing record to verify idempotency
+                        java.util.Optional<MfeConsumedRemote> existing = consumedRemoteRepository
+                                        .findByConsumerVersionIdAndRemoteName(dep.get().getVersion().getId(), remote);
+
+                        if (existing.isPresent()) {
+                                return ResponseEntity.ok("Already Reported");
+                        }
+
                         MfeConsumedRemote consumed = new MfeConsumedRemote();
                         consumed.setConsumerVersion(dep.get().getVersion());
                         consumed.setRemoteName(remote);
@@ -458,47 +470,70 @@ public class DashboardController {
         public ResponseEntity<Object> getDependencyGraph() {
                 java.util.List<java.util.Map<String, Object>> nodes = new java.util.ArrayList<>();
                 java.util.List<java.util.Map<String, Object>> edges = new java.util.ArrayList<>();
-                java.util.Set<String> addedNodes = new java.util.HashSet<>();
+
+                // Track known apps to avoid creating duplicate "external" nodes
+                java.util.Set<String> knownApps = new java.util.HashSet<>();
+                java.util.Set<String> addedExternalNodes = new java.util.HashSet<>();
 
                 Iterable<MfeApplication> apps = mfeRepository.findAll();
+
+                // Pass 1: Create Nodes for all registered Applications
                 for (MfeApplication app : apps) {
+                        knownApps.add(app.getName());
+
                         java.util.Map<String, Object> node = new java.util.HashMap<>();
                         node.put("id", app.getName());
                         node.put("label", app.getName());
                         node.put("type", "app");
 
-                        // Get active production version
+                        // Add exposed modules info
                         Optional<com.maverick.feature.domain.Deployment> dep = deploymentRepository
                                         .findActiveGlobal(app.getName(),
                                                         com.maverick.feature.domain.Environment.PRODUCTION);
 
                         if (dep.isPresent()) {
                                 MfeApplicationVersion v = dep.get().getVersion();
-                                // Add exposed modules to node info
                                 java.util.List<com.maverick.feature.domain.MfeExposedModule> exposed = exposedModuleRepository
                                                 .findByApplicationVersionId(v.getId());
                                 java.util.List<String> moduleNames = exposed.stream().map(m -> m.getName())
                                                 .collect(java.util.stream.Collectors.toList());
                                 node.put("exposedModules", moduleNames);
+                        }
 
+                        nodes.add(node);
+                }
+
+                // Pass 2: Create Edges and "External" Nodes for unknown dependencies
+                for (MfeApplication app : apps) {
+                        Optional<com.maverick.feature.domain.Deployment> dep = deploymentRepository
+                                        .findActiveGlobal(app.getName(),
+                                                        com.maverick.feature.domain.Environment.PRODUCTION);
+
+                        if (dep.isPresent()) {
+                                MfeApplicationVersion v = dep.get().getVersion();
                                 java.util.List<MfeConsumedRemote> consumed = consumedRemoteRepository
                                                 .findByConsumerVersionId(v.getId());
+
                                 for (MfeConsumedRemote c : consumed) {
-                                        if (!addedNodes.contains(c.getRemoteName())) {
-                                                nodes.add(java.util.Map.of("id", c.getRemoteName(), "label",
-                                                                c.getRemoteName(), "type", "external"));
-                                                addedNodes.add(c.getRemoteName());
+                                        String remoteName = c.getRemoteName();
+
+                                        // If remote is NOT a known app, verify if we need to add a node for it
+                                        if (!knownApps.contains(remoteName)) {
+                                                if (!addedExternalNodes.contains(remoteName)) {
+                                                        nodes.add(java.util.Map.of("id", remoteName, "label",
+                                                                        remoteName, "type", "external"));
+                                                        addedExternalNodes.add(remoteName);
+                                                }
                                         }
+
+                                        // Create Edge
                                         edges.add(java.util.Map.of(
                                                         "source", app.getName(),
-                                                        "target", c.getRemoteName(),
+                                                        "target", remoteName,
                                                         "label", c.getUsedModules() != null ? c.getUsedModules() : "",
                                                         "dynamic", c.getDynamic()));
                                 }
                         }
-
-                        nodes.add(node);
-                        addedNodes.add(app.getName());
                 }
 
                 return ResponseEntity.ok(java.util.Map.of("nodes", nodes, "edges", edges));
