@@ -1,45 +1,63 @@
-.app-layout {
-    display: flex;
+/* Main App Shell Layout */
+.app-container {
+    width: 100vw;
+    height: 100vh;
     background-color: var(--bg-dark);
-    min-height: 100vh;
+}
+
+/* Sidenav overrides */
+.sidebar-sidenav {
+    width: 280px;
+    /* Fixed width sidebar */
+    border-right: 1px solid var(--slate-200);
+}
+
+.main-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden !important;
+    /* Disable Material's default scroll, let page handle it */
 }
 
 .top-toolbar {
-    height: 80px;
+    height: 64px;
     background: white !important;
     color: var(--slate-900) !important;
-    border-bottom: 1px solid var(--slate-100);
+    border-bottom: 1px solid var(--slate-200);
     z-index: 10;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+    flex: 0 0 auto;
+    /* Don't shrink */
 }
 
 .toolbar-content {
     display: flex;
     align-items: center;
     width: 100%;
-    padding: 0 40px;
+    padding: 0 24px;
 }
 
 .header-titles {
     display: flex;
     flex-direction: column;
-    line-height: 1.1;
+    justify-content: center;
+    line-height: 1.2;
 }
 
 .main-title {
-    font-size: 1.5rem;
-    font-weight: 800;
-    letter-spacing: -0.04em;
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     color: var(--slate-900);
 }
 
 .sub-title {
-    font-size: 0.75rem;
-    color: var(--slate-400);
-    font-weight: 700;
+    font-size: 0.7rem;
+    color: var(--slate-500);
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-top: 2px;
+    letter-spacing: 0.05em;
 }
 
 .spacer {
@@ -50,10 +68,11 @@
     display: flex;
     align-items: center;
     background: var(--slate-50);
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: 99px;
     border: 1px solid var(--slate-200);
-    gap: 12px;
+    gap: 10px;
+    height: 32px;
 }
 
 .pulse-dot {
@@ -70,7 +89,7 @@
     }
 
     70% {
-        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
     }
 
     100% {
@@ -79,7 +98,7 @@
 }
 
 .pill-text {
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: var(--slate-700);
 }
@@ -91,12 +110,25 @@
 }
 
 .pill-meta {
-    font-size: 0.6875rem;
-    font-weight: 800;
-    color: var(--slate-400);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--slate-500);
     font-family: 'JetBrains Mono', monospace;
 }
 
+/* Page Container - The viewport for router content */
+/* We remove padding here because walls (Ecosystem/DepGraph) need full bleed */
+/* Regular pages can add their own wrapper with padding */
 .page-container {
-    padding: 40px;
+    flex: 1;
+    overflow: hidden;
+    /* Prevent spill */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+router-outlet {
+    display: none;
+    /* Angular implementation detail, usually strictly virtual */
 }

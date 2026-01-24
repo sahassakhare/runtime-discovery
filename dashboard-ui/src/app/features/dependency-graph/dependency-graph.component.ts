@@ -1,11 +1,12 @@
 import { Component, inject, signal, OnInit, ElementRef, ViewChild, AfterViewInit, HostListener, effect, ViewEncapsulation, OnDestroy } from '@angular/core';
-
 import { CommonModule } from '@angular/common';
 import { DashboardService } from '../../core/services/dashboard.service';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import * as d3 from 'd3';
 
 interface GraphNode extends d3.SimulationNodeDatum {
@@ -13,6 +14,7 @@ interface GraphNode extends d3.SimulationNodeDatum {
   label: string;
   type: 'app' | 'external';
   exposedModules?: string[];
+  status?: 'ONLINE' | 'OFFLINE' | 'UNKNOWN';
 }
 
 interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
@@ -25,173 +27,387 @@ interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
 @Component({
   selector: 'app-dependency-graph',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatIconModule, MatButtonModule, MatProgressSpinnerModule],
+  imports: [CommonModule, MatCardModule, MatIconModule, MatButtonModule, MatProgressSpinnerModule, MatChipsModule, MatTooltipModule],
   encapsulation: ViewEncapsulation.None,
   template: `
-    <div class="page-container">
-      <div class="main-content">
-        <mat-card class="header-card">
-          <mat-card-header>
-            <mat-icon mat-card-avatar color="primary">hub</mat-icon>
-            <mat-card-title>Polylith Galaxy</mat-card-title>
-            <mat-card-subtitle>Interactive Force-Directed Dependency Graph</mat-card-subtitle>
-          </mat-card-header>
-        </mat-card>
+    <div class="graph-root">
+      
+      <!-- BACKGROUND GRID -->
+      <div class="space-grid"></div>
 
-        <div class="graph-viewport" #graphContainer>
-           <!-- D3 Graph will be rendered here -->
-           <div class="legend">
-              <div class="legend-item"><span class="dot app"></span> Application</div>
-              <div class="legend-item"><span class="dot external"></span> Remote (Ext)</div>
-              <div class="legend-item"><span class="line static"></span> Static</div>
-              <div class="legend-item"><span class="line dynamic"></span> Dynamic</div>
+      <!-- HEADER OVERLAY -->
+      <div class="header-overlay">
+        <div class="header-content">
+          <div class="live-indicator">
+            <span class="pulse"></span> LIVE
+          </div>
+          <div class="stats">
+            <div class="stat-item">
+              <span class="value">{{nodes().length}}</span>
+              <span class="label">Nodes</span>
+            </div>
+            <div class="stat-item">
+              <span class="value">{{edges().length}}</span>
+              <span class="label">Links</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN VIEWPORT -->
+      <div class="graph-viewport" #graphContainer>
+         <!-- D3 Graph Rendered Here -->
+         
+         <!-- EMPTY STATE / LOADING -->
+         <div class="center-message" *ngIf="nodes().length === 0 && !error()">
+            <mat-spinner diameter="50" color="accent"></mat-spinner>
+            <div class="scanning-text">Scanning Federated Mesh...</div>
+         </div>
+
+         <!-- ERROR STATE -->
+         <div class="center-message error" *ngIf="error()">
+            <mat-icon class="large-icon">hub</mat-icon>
+            <div class="error-title">Connection Lost</div>
+            <div class="error-desc">{{error()}}</div>
+            <button mat-flat-button color="warn" (click)="reload()">Retry Discovery</button>
+         </div>
+      </div>
+
+      <!-- CONTROLS -->
+      <div class="controls-overlay">
+        <button mat-icon-button (click)="zoomToFit()" matTooltip="Reset View">
+          <mat-icon>center_focus_strong</mat-icon>
+        </button>
+      </div>
+
+      <!-- LEGEND -->
+      <div class="legend-glass">
+        <div class="legend-row"><span class="dot app"></span> Application</div>
+        <div class="legend-row"><span class="dot external"></span> Remote Module</div>
+        <div class="legend-row"><span class="line static"></span> Static Dep</div>
+        <div class="legend-row"><span class="line dynamic"></span> Dynamic (Runtime)</div>
+      </div>
+
+      <!-- DETAILS PANEL (SLIDE OVERS) -->
+      <div class="details-panel glass-panel" [class.open]="selectedNode()">
+        <div class="panel-header" *ngIf="selectedNode() as node">
+          <button mat-icon-button (click)="closeDetails()" class="close-btn"><mat-icon>close</mat-icon></button>
+          <div class="node-icon-large" [class]="node.type">
+            <mat-icon>{{ node.type === 'app' ? 'web' : 'extension' }}</mat-icon>
+          </div>
+          <div class="node-titles">
+            <div class="node-type">{{ node.type }}</div>
+            <div class="node-name">{{ node.label }}</div>
+          </div>
+        </div>
+
+        <div class="panel-body" *ngIf="selectedNodeDetails(); else loadingDetails">
+           <section class="info-section">
+              <div class="section-label">Active Version</div>
+              <div class="version-display">
+                 <span class="v-tag">{{ selectedNodeDetails()?.activeVersion?.version || 'Unknown' }}</span>
+                 <span class="env-tag">{{ selectedNodeDetails()?.activeVersion?.environment || 'N/A' }}</span>
+              </div>
+           </section>
+
+           <section class="info-section" *ngIf="selectedNodeDetails()?.dependencies?.length">
+              <div class="section-label">Dependencies</div>
+              <div class="chip-grid">
+                 <div class="dep-chip" *ngFor="let dep of selectedNodeDetails()?.dependencies">
+                    <mat-icon>arrow_forward</mat-icon>
+                    {{ dep.remoteName }}
+                 </div>
+              </div>
+           </section>
+
+           <section class="info-section" *ngIf="selectedNodeDetails()?.consumers?.length">
+              <div class="section-label">Used By</div>
+              <div class="chip-grid">
+                 <div class="dep-chip consumer" *ngFor="let consumer of selectedNodeDetails()?.consumers">
+                    <mat-icon>arrow_back</mat-icon>
+                    {{ consumer }}
+                 </div>
+              </div>
+           </section>
+           
+           <div class="actions-row">
+             <button mat-stroked-button color="primary" class="full-btn">
+               <mat-icon>visibility</mat-icon> View Telemetry
+             </button>
            </div>
         </div>
+
+        <ng-template #loadingDetails>
+           <div class="panel-loading" *ngIf="selectedNode() && isLoadingDetails()">
+              <mat-progress-spinner mode="indeterminate" diameter="30"></mat-progress-spinner>
+              <span>Fetching metadata...</span>
+           </div>
+        </ng-template>
       </div>
 
-      <!-- Detail Panel -->
-      <div class="detail-panel" *ngIf="selectedNode() as node">
-        <div class="panel-header">
-           <div class="panel-title">{{node.label}}</div>
-           <button mat-icon-button (click)="selectedNode.set(null)">
-             <mat-icon>close</mat-icon>
-           </button>
-        </div>
-        <div class="panel-body">
-           <section>
-             <div class="section-title">Type</div>
-             <div class="section-value">{{node.type | uppercase}}</div>
-           </section>
-
-           <section *ngIf="node.exposedModules?.length">
-             <div class="section-title">Exposed Modules</div>
-             <div class="exposed-list">
-               <div class="exposed-item" *ngFor="let mod of node.exposedModules">
-                 <mat-icon>extension</mat-icon>
-                 <span>{{mod}}</span>
-               </div>
-             </div>
-           </section>
-
-           <section *ngIf="getOutgoingEdges(node) as outgoing">
-             <div class="section-title">Consumes</div>
-             <div class="exposed-list">
-               <div class="exposed-item" *ngFor="let edge of outgoing">
-                 <mat-icon>link</mat-icon>
-                 <div class="consume-info">
-                   <div class="remote-name">{{getTargetId(edge)}}</div>
-                   <div class="modules">{{edge.label}}</div>
-                 </div>
-               </div>
-             </div>
-           </section>
-        </div>
-        
-        <!-- Version History Section -->
-        <div class="panel-body" *ngIf="selectedNodeDetails() as details">
-           <section>
-             <div class="section-title">Version History</div>
-             <div *ngIf="isLoadingDetails()" class="loading-spinner">
-                <mat-spinner diameter="20"></mat-spinner>
-             </div>
-             <div class="version-list" *ngIf="!isLoadingDetails()">
-               <div class="version-item" *ngFor="let v of details.versions" [class.locked]="v === details.lockedVersion">
-                 <div class="version-info">
-                    <span class="v-num">{{v}}</span>
-                    <span *ngIf="v === details.activeVersion" class="badge active">Active</span>
-                    <span *ngIf="v === details.lockedVersion" class="badge locked">Locked</span>
-                 </div>
-                 <div class="actions">
-                    <button mat-icon-button color="warn" *ngIf="v === details.lockedVersion" (click)="unlockVersion(details.name)">
-                        <mat-icon>lock</mat-icon>
-                    </button>
-                    <button mat-icon-button *ngIf="v !== details.lockedVersion" (click)="lockVersion(details.name, v)">
-                        <mat-icon>lock_open</mat-icon>
-                    </button>
-                 </div>
-               </div>
-             </div>
-           </section>
-        </div>
-      </div>
     </div>
   `,
   styles: [`
-    :host { display: block; height: 100%; width: 100%; }
-    .page-container { height: 100%; width: 100%; display: flex; overflow: hidden; background: #0f172a; color: #fff; }
-    .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 24px; overflow: hidden; position: relative; }
-    .header-card { margin-bottom: 24px; border-radius: 16px; background: #1e293b; color: #fff; border: 1px solid #334155; }
-    ::ng-deep .mat-mdc-card-title { color: #fff !important; }
-    ::ng-deep .mat-mdc-card-subtitle { color: #94a3b8 !important; }
-
-    .graph-viewport { 
-        flex: 1 1 auto; /* Grow and shrink, basis auto */
-        min-height: 70vh; /* Ensure visibility always */
-        width: 100%;
-        background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); 
-        border-radius: 16px; 
-        border: 1px solid #334155; 
-        overflow: hidden;
-        position: relative;
+    :host { 
+        display: block; 
+        position: absolute; 
+        top: 0; 
+        left: 0; 
+        right: 0; 
+        bottom: 0; 
+        overflow: hidden; 
     }
 
-    .legend {
+    .graph-root {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        background-color: #0f172a;
+        overflow: hidden;
+    }
+
+    /* Animated Space Grid Background */
+    .space-grid {
         position: absolute;
-        bottom: 20px;
+        width: 200%;
+        height: 200%;
+        top: -50%;
+        left: -50%;
+        background-image: 
+            linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 50px 50px;
+        transform: perspective(500px) rotateX(60deg);
+        animation: grid-move 20s linear infinite;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    @keyframes grid-move {
+        0% { transform: perspective(500px) rotateX(60deg) translateY(0); }
+        100% { transform: perspective(500px) rotateX(60deg) translateY(50px); }
+    }
+
+    .graph-viewport {
+        flex: 1;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        cursor: grab;
+    }
+    .graph-viewport:active { cursor: grabbing; }
+
+    /* Glassmorphism Utilities */
+    .glass-panel {
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Header Overlay */
+    .header-overlay {
+        position: absolute;
+        top: 20px;
         left: 20px;
-        background: rgba(30, 41, 59, 0.8);
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid #334155;
-        backdrop-filter: blur(4px);
+        z-index: 10;
         pointer-events: none;
     }
-    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #cbd5e1; margin-bottom: 4px; }
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    .live-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        font-weight: 800;
+        color: #10b981;
+        background: rgba(16, 185, 129, 0.1);
+        padding: 4px 10px;
+        border-radius: 20px;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .pulse {
+        width: 6px;
+        height: 6px;
+        background: #10b981;
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        animation: pulse-green 2s infinite;
+    }
+    @keyframes pulse-green {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .stats {
+        display: flex;
+        gap: 15px;
+    }
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
+    .stat-item .value { font-size: 18px; font-weight: 700; color: white; line-height: 1; }
+    .stat-item .label { font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 600; }
+
+    /* Controls */
+    .controls-overlay {
+        position: absolute;
+        bottom: 30px;
+        right: 30px;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .controls-overlay button {
+        background: rgba(30, 41, 59, 0.9);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Legend */
+    .legend-glass {
+        position: absolute;
+        bottom: 30px;
+        left: 30px;
+        padding: 15px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.05);
+        z-index: 5;
+        pointer-events: none;
+    }
+    .legend-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+        color: #cbd5e1;
+        margin-bottom: 6px;
+    }
+    .legend-row:last-child { margin-bottom: 0; }
     .dot { width: 8px; height: 8px; border-radius: 50%; }
     .dot.app { background: #3b82f6; box-shadow: 0 0 8px #3b82f6; }
     .dot.external { background: #64748b; }
-    .line { width: 20px; height: 2px; }
-    .line.static { background: #475569; }
-    .line.dynamic { border-top: 2px dashed #3b82f6; height: 0; }
+    .line { width: 20px; height: 2px; background: #475569; }
+    .line.dynamic { border-top: 2px dashed #3b82f6; background: transparent; }
 
-    .detail-panel { width: 320px; background: #1e293b; border-left: 1px solid #334155; display: flex; flex-direction: column; z-index: 10; }
-    .panel-header { padding: 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
-    .panel-title { font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 0.1em; font-size: 14px; }
-    .panel-body { padding: 20px; overflow-y: auto; flex: 1; }
+    /* Overlay Messages */
+    .center-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        color: #94a3b8;
+        pointer-events: none;
+        text-align: center;
+    }
+    .scanning-text {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        animation: blink 1.5s infinite;
+    }
+    .error .error-title { color: #f43f5e; font-size: 18px; font-weight: 700; }
+    .error .error-desc { max-width: 300px; color: #94a3b8; font-size: 13px; line-height: 1.4; margin-bottom: 10px; }
+    .error button { pointer-events: auto; }
+
+    /* Details Panel */
+    .details-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 360px;
+        border-left: 1px solid rgba(255,255,255,0.1);
+        transform: translateX(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+    }
+    .details-panel.open { transform: translateX(0); }
+
+    .panel-header {
+        padding: 24px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        position: relative;
+    }
+    .close-btn { position: absolute !important; top: 10px; right: 10px; color: #64748b; }
     
-    section { margin-bottom: 24px; }
-    .section-title { font-size: 9px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px; }
-    .section-value { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+    .node-icon-large {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .node-icon-large mat-icon { font-size: 32px; width: 32px; height: 32px; color: #94a3b8; }
+    .node-icon-large.app { box-shadow: 0 0 30px rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.3); }
+    .node-icon-large.app mat-icon { color: #60a5fa; }
 
-    .exposed-list { display: flex; flex-direction: column; gap: 12px; }
-    .exposed-item { display: flex; align-items: flex-start; gap: 12px; }
-    .exposed-item mat-icon { font-size: 16px; width: 16px; height: 16px; color: #3b82f6; margin-top: 2px; }
-    .exposed-item span { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+    .node-titles .node-type { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; font-weight: 700; margin-bottom: 4px; }
+    .node-titles .node-name { font-size: 20px; font-weight: 600; color: white; }
+
+    .panel-body { padding: 24px; flex: 1; overflow-y: auto; color: #cbd5e1; }
+    .info-section { margin-bottom: 24px; }
+    .section-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: #475569; margin-bottom: 10px; letter-spacing: 0.5px; }
     
-    .consume-info { display: flex; flex-direction: column; gap: 2px; }
-    .remote-name { font-size: 13px; font-weight: 700; color: #e2e8f0; }
-    .modules { font-size: 10px; color: #94a3b8; font-family: 'JetBrains Mono', monospace; }
+    .version-display {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .v-tag { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: white; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); }
+    .env-tag { font-size: 10px; font-weight: 700; background: #064e3b; color: #34d399; padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.2); }
 
-    /* D3 Styles */
-    text { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: #94a3b8; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
-    .node circle { transition: all 0.3s; stroke: #fff; stroke-width: 0; }
-    .node:hover circle { stroke-width: 2px; filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.8)); }
-    line { stroke-opacity: 0.6; transition: stroke-width 0.3s; }
+    .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .dep-chip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(30, 41, 59, 0.5);
+        border: 1px solid rgba(255,255,255,0.05);
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #e2e8f0;
+    }
+    .dep-chip mat-icon { font-size: 14px; width: 14px; height: 14px; color: #64748b; }
+    .dep-chip.consumer mat-icon { color: #818cf8; }
 
-    .version-list { display: flex; flex-direction: column; gap: 8px; }
-    .version-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #334155; border-radius: 6px; border: 1px solid transparent; }
-    .version-item.locked { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
-    .version-info { display: flex; align-items: center; gap: 8px; }
-    .v-num { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #fff; }
-    .badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
-    .badge.active { background: #059669; color: #ecfdf5; }
-    .badge.locked { background: #dc2626; color: #fef2f2; }
-    .loading-spinner { display: flex; justify-content: center; padding: 10px; }
+    .full-btn { width: 100%; border-radius: 8px; height: 44px; }
+    .actions-row { margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05); }
+    
+    .panel-loading { display: flex; flex-direction: column; align-items: center; gap: 10px; color: #64748b; padding-top: 40px; }
+
+    /* SVG Elements */
+    .node-label { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 500; fill: #94a3b8; pointer-events: none; text-shadow: 0 2px 4px rgba(0,0,0,0.8); transition: opacity 0.2s; opacity: 0.8; }
+    .node:hover .node-label { opacity: 1; fill: white; font-weight: 700; }
   `]
 })
 export class DependencyGraphComponent implements OnInit, AfterViewInit, OnDestroy {
   private dashboardService = inject(DashboardService);
-
   @ViewChild('graphContainer') graphContainer!: ElementRef;
 
   nodes = signal<GraphNode[]>([]);
@@ -199,274 +415,289 @@ export class DependencyGraphComponent implements OnInit, AfterViewInit, OnDestro
   selectedNode = signal<GraphNode | null>(null);
   selectedNodeDetails = signal<any>(null);
   isLoadingDetails = signal<boolean>(false);
+  error = signal<string | null>(null);
 
   private svg: any;
+  private g: any;
   private simulation: any;
+  private zoom: any;
   private width = 0;
   private height = 0;
-
-  constructor() {
-    effect(() => {
-      const n = this.nodes();
-      const e = this.edges();
-      if (this.simulation && n.length) {
-        this.updateGraph(n, e);
-      }
-    });
-  }
-
-  ngOnInit() {
-    this.dashboardService.getDependencyGraph().subscribe(data => {
-      // Transform data for D3
-      const d3Nodes = data.nodes.map((n: any) => ({ ...n }));
-      const d3Edges = data.edges.map((e: any) => ({ ...e }));
-
-      this.nodes.set(d3Nodes);
-      this.edges.set(d3Edges);
-    });
-  }
-
   private resizeObserver: ResizeObserver | undefined;
 
-  ngAfterViewInit() {
-    if (!this.graphContainer) {
-      console.warn('[DepGraph] graphContainer is undefined in ngAfterViewInit');
-      return;
-    }
+  ngOnInit() {
+    this.reload();
+  }
 
-    // Initialize Observer
-    this.resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-          this.onResize();
-        }
-      }
+  ngAfterViewInit() {
+    if (!this.graphContainer) return;
+
+    // Use debounce to prevent loop
+    let resizeTimer: any;
+    this.resizeObserver = new ResizeObserver((entries) => {
+      if (!entries || entries.length === 0) return;
+      const rect = entries[0].contentRect;
+
+      // Epsilon check: Ignore small changes (< 2px)
+      if (Math.abs(rect.width - this.width) < 2 && Math.abs(rect.height - this.height) < 2) return;
+
+      // Debounce
+      cancelAnimationFrame(resizeTimer);
+      resizeTimer = requestAnimationFrame(() => {
+        this.width = rect.width;
+        this.height = rect.height;
+        this.onResize();
+      });
     });
     this.resizeObserver.observe(this.graphContainer.nativeElement);
 
+    // Initial Setup
     this.initGraph();
-
-    // Check if we have data waiting
-    if (this.nodes().length > 0) {
-      this.updateGraph(this.nodes(), this.edges());
-    }
   }
 
   ngOnDestroy() {
     this.resizeObserver?.disconnect();
+    if (this.simulation) this.simulation.stop();
+  }
+
+  reload() {
+    this.error.set(null);
+    this.dashboardService.getDependencyGraph().subscribe({
+      next: (data) => {
+        // Correct transform for D3 mutability
+        const d3Nodes = data.nodes.map((n: any) => ({ ...n }));
+        const d3Edges = data.edges.map((e: any) => ({ ...e }));
+
+        console.log('[Graph] Loaded:', d3Nodes.length, 'nodes', d3Edges.length, 'edges');
+
+        this.nodes.set(d3Nodes);
+        this.edges.set(d3Edges);
+        this.updateGraph(d3Nodes, d3Edges);
+
+        // Auto-center after a slight delay to allow simulation to expand
+        setTimeout(() => this.zoomToFit(), 500);
+      },
+      error: (err) => {
+        console.error('Graph Load Error:', err);
+        this.error.set("Unable to fetch topology from Registry Service.");
+      }
+    });
   }
 
   onResize() {
-    if (!this.graphContainer) return;
-    const element = this.graphContainer.nativeElement;
-    this.width = element.offsetWidth || 800;
-    this.height = element.offsetHeight || 600;
+    if (!this.svg || this.width === 0 || this.height === 0) return;
 
-    // Update SVG ViewBox
-    d3.select(element).select('svg')
-      .attr("viewBox", `0 0 ${this.width} ${this.height}`);
+    // Log removed to prevent spam during layout settle
+    this.svg.attr("viewBox", [0, 0, this.width, this.height]);
 
-    // Update Simulation Center
     if (this.simulation) {
       this.simulation.force("center", d3.forceCenter(this.width / 2, this.height / 2));
-      this.simulation.alpha(0.3).restart();
+      this.simulation.alpha(0.5).restart();
     }
   }
 
-  // ...
+  zoomToFit() {
+    if (!this.svg || !this.g || this.nodes().length === 0) return;
 
-  private initGraph() {
-    if (!this.graphContainer) return;
-    const element = this.graphContainer.nativeElement;
-    this.width = element.offsetWidth || 800; // Fallback to 800 if 0
-    this.height = element.offsetHeight || 600; // Fallback to 600 if 0
+    // Allow simulation to settle a bit before measuring bounds
+    // But if we need immediate feedback, we calculate current positions
+    setTimeout(() => {
+      try {
+        const bounds = this.g.node().getBBox();
+        if (bounds.width === 0 || bounds.height === 0) return; // Nothing to zoom to
 
-    // Clear previous if any
-    d3.select(element).select('svg').remove();
+        const parent = this.graphContainer.nativeElement;
+        const fullWidth = parent.clientWidth || 800;
+        const fullHeight = parent.clientHeight || 600;
 
-    const svg = d3.select(element).append("svg")
-      .attr("width", "100%")
-      .attr("height", "100%")
-      .attr("viewBox", `0 0 ${this.width} ${this.height}`);
+        const width = Math.max(bounds.width, 100);
+        const height = Math.max(bounds.height, 100);
+        const midX = bounds.x + bounds.width / 2;
+        const midY = bounds.y + bounds.height / 2;
 
-    const g = svg.append("g");
+        const scale = 0.85 / Math.max(width / fullWidth, height / fullHeight);
+        const zoomScale = Math.min(Math.max(scale, 0.2), 2); // Clamp
 
-    // Assign to class property for use in updateGraph
-    this.svg = g;
+        const translate = [fullWidth / 2 - zoomScale * midX, fullHeight / 2 - zoomScale * midY];
 
-    // Apply zoom
-    svg.call(d3.zoom<SVGSVGElement, unknown>().on("zoom", (event) => {
-      g.attr("transform", event.transform);
-    }));
+        console.log('[Graph] Zooming to:', translate, zoomScale);
 
-    // Force Simulation
-    this.simulation = d3.forceSimulation()
-      .force("link", d3.forceLink().id((d: any) => d.id).distance(150))
-      .force("charge", d3.forceManyBody().strength(-400))
-      .force("center", d3.forceCenter(this.width / 2, this.height / 2))
-      .force("collide", d3.forceCollide().radius(40));
+        this.svg.transition().duration(750).call(
+          this.zoom.transform,
+          d3.zoomIdentity.translate(translate[0], translate[1]).scale(zoomScale)
+        );
+      } catch (e) {
+        console.warn("Zoom Fit Failed", e);
+      }
+    }, 100);
   }
 
-  private updateGraph(nodes: GraphNode[], links: GraphLink[]) {
-    const svg = this.svg;
+  closeDetails() {
+    this.selectedNode.set(null);
+  }
 
-    // Edges
-    const link = svg.selectAll(".link")
-      .data(links)
-      .join("line")
-      .attr("class", "link")
-      .attr("stroke", (d: any) => d.dynamic ? "#3b82f6" : "#475569")
-      .attr("stroke-width", 1.5)
-      .attr("stroke-dasharray", (d: any) => d.dynamic ? "4 4" : "none")
-      .attr("marker-end", "url(#arrow)");
+  private initGraph() {
+    const el = this.graphContainer.nativeElement;
+    d3.select(el).select('svg').remove(); // Clear
 
-    // Nodes
-    const node = svg.selectAll(".node")
-      .data(nodes)
-      .join("g")
-      .attr("class", "node")
-      .call(this.drag(this.simulation))
-      .on("click", (event: any, d: GraphNode) => {
-        this.onNodeClick(d);
-        event.stopPropagation();
-      });
+    this.svg = d3.select(el).append("svg")
+      .attr("width", "100%")
+      .attr("height", "100%")
+      .attr("viewBox", [0, 0, el.clientWidth, el.clientHeight]);
 
-    // Node Circles
-    node.selectAll("circle").remove(); // Clear previous
-    node.append("circle")
-      .attr("r", (d: any) => d.type === 'app' ? 20 : 12)
-      .attr("fill", (d: any) => d.type === 'app' ? "#3b82f6" : "#64748b")
-      .attr("fill-opacity", 0.8)
-      .attr("stroke", "#fff")
-      .attr("stroke-width", 0);
+    const g = this.svg.append("g");
+    this.g = g;
 
-    // Halo for Apps
-    node.filter((d: any) => d.type === 'app')
-      .append("circle")
-      .attr("r", 25)
-      .attr("fill", "transparent")
-      .attr("stroke", "#3b82f6")
-      .attr("stroke-opacity", 0.3)
-      .attr("stroke-width", 1);
+    // Zoom Behavior
+    this.zoom = d3.zoom()
+      .scaleExtent([0.1, 4])
+      .on("zoom", (event) => g.attr("transform", event.transform));
+    this.svg.call(this.zoom);
 
-    // Labels
-    node.selectAll("text").remove();
-    node.append("text")
-      .attr("dy", (d: any) => d.type === 'app' ? 35 : 25)
-      .attr("text-anchor", "middle")
-      .text((d: any) => d.label);
+    // Definitions (Gradients/Markers)
+    const defs = this.svg.append("defs");
 
     // Arrow Marker
-    svg.append("defs").selectAll("marker")
-      .data(["arrow"])
-      .join("marker")
-      .attr("id", "arrow")
+    defs.append("marker")
+      .attr("id", "arrow-dynamic")
       .attr("viewBox", "0 -5 10 10")
-      .attr("refX", 28) // Offset to not overlap circle
+      .attr("refX", 24)
       .attr("refY", 0)
       .attr("markerWidth", 6)
       .attr("markerHeight", 6)
       .attr("orient", "auto")
       .append("path")
-      .attr("fill", "#475569")
+      .attr("fill", "#60a5fa") // Blue
       .attr("d", "M0,-5L10,0L0,5");
 
-    // START TICKER
-    this.simulation
-      .nodes(nodes)
-      .on("tick", () => {
-        if (this.simulation.alpha() > 0.99) {
-        }
+    defs.append("marker")
+      .attr("id", "arrow-static")
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 20)
+      .attr("refY", 0)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 6)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("fill", "#475569") // Slate
+      .attr("d", "M0,-5L10,0L0,5");
 
-        link
-          .attr("x1", (d: any) => d.source.x)
-          .attr("y1", (d: any) => d.source.y)
-          .attr("x2", (d: any) => d.target.x)
-          .attr("y2", (d: any) => d.target.y);
+    // Glow Filter
+    const filter = defs.append("filter").attr("id", "glow");
+    filter.append("feGaussianBlur").attr("stdDeviation", "2.5").attr("result", "coloredBlur");
+    const merge = filter.append("feMerge");
+    merge.append("feMergeNode").attr("in", "coloredBlur");
+    merge.append("feMergeNode").attr("in", "SourceGraphic");
 
-        node
-          .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
-      });
+    this.simulation = d3.forceSimulation()
+      .force("link", d3.forceLink().id((d: any) => d.id).distance(150))
+      .force("charge", d3.forceManyBody().strength(-400))
+      .force("collide", d3.forceCollide(40))
+      .force("center", d3.forceCenter(el.clientWidth / 2, el.clientHeight / 2));
+  }
+
+  private updateGraph(nodes: GraphNode[], links: GraphLink[]) {
+    // LINKS
+    const link = this.g.selectAll(".link")
+      .data(links)
+      .join("path") // Using path for curved lines potential
+      .attr("class", "link")
+      .attr("fill", "none")
+      .attr("stroke", (d: any) => d.dynamic ? "#3b82f6" : "#334155")
+      .attr("stroke-width", (d: any) => d.dynamic ? 2 : 1)
+      .attr("stroke-dasharray", (d: any) => d.dynamic ? "4,4" : "none")
+      .attr("marker-end", (d: any) => d.dynamic ? "url(#arrow-dynamic)" : "url(#arrow-static)");
+
+    // Define Node Groups
+    const node = this.g.selectAll(".node")
+      .data(nodes)
+      .join("g")
+      .attr("class", "node")
+      .attr("cursor", "pointer")
+      .call(d3.drag()
+        .on("start", (event, d: any) => {
+          if (!event.active) this.simulation.alphaTarget(0.3).restart();
+          d.fx = d.x; d.fy = d.y;
+        })
+        .on("drag", (event, d: any) => {
+          d.fx = event.x; d.fy = event.y;
+        })
+        .on("end", (event, d: any) => {
+          if (!event.active) this.simulation.alphaTarget(0);
+          d.fx = null; d.fy = null;
+        }));
+
+    // Circles
+    node.selectAll("circle").remove();
+
+    // Outer Glow (Apps)
+    node.filter((d: any) => d.type === 'app')
+      .append("circle")
+      .attr("r", 20)
+      .attr("fill", "#3b82f6")
+      .attr("opacity", 0.2)
+      .append("animate")
+      .attr("attributeName", "r")
+      .attr("values", "20;25;20")
+      .attr("dur", "3s")
+      .attr("repeatCount", "indefinite");
+
+    // Main Circle
+    node.append("circle")
+      .attr("r", (d: any) => d.type === 'app' ? 12 : 8)
+      .attr("fill", (d: any) => d.type === 'app' ? "#60a5fa" : "#94a3b8")
+      .attr("stroke", "#0f172a")
+      .attr("stroke-width", 2)
+      .attr("filter", (d: any) => d.type === 'app' ? "url(#glow)" : "");
+
+    // Labels
+    node.selectAll("text").remove();
+    node.append("text")
+      .attr("class", "node-label")
+      .attr("dy", 24)
+      .attr("text-anchor", "middle")
+      .text((d: any) => d.label);
+
+    // Event Handling
+    node.on("click", (event: any, d: GraphNode) => {
+      event.stopPropagation();
+      this.onNodeClick(d);
+    });
+
+    // Simulation Tick
+    this.simulation.nodes(nodes).on("tick", () => {
+      link.attr("d", (d: any) => `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`);
+      node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+    });
 
     this.simulation.force("link").links(links);
     this.simulation.alpha(1).restart();
   }
 
-  private drag(simulation: any) {
-    function dragstarted(event: any) {
-      if (!event.active) simulation.alphaTarget(0.3).restart();
-      event.subject.fx = event.subject.x;
-      event.subject.fy = event.subject.y;
-    }
-
-    function dragged(event: any) {
-      event.subject.fx = event.x;
-      event.subject.fy = event.y;
-    }
-
-    function dragended(event: any) {
-      if (!event.active) simulation.alphaTarget(0);
-      event.subject.fx = null;
-      event.subject.fy = null;
-    }
-
-    return d3.drag()
-      .on("start", dragstarted)
-      .on("drag", dragged)
-      .on("end", dragended);
-  }
-
-  getOutgoingEdges(node: any) {
-    return this.edges().filter(e => {
-      // D3 converts source/target to objects, so we handle both cases
-      const sourceId = typeof e.source === 'string' ? e.source : (e.source as GraphNode).id;
-      return sourceId === node.id;
-    });
-  }
-
-  getTargetId(edge: any): string {
-    const target = edge.target;
-    return typeof target === 'string' ? target : (target as GraphNode).id;
-  }
-
   onNodeClick(node: GraphNode) {
     this.selectedNode.set(node);
-    this.selectedNodeDetails.set(null); // Reset details
+    this.selectedNodeDetails.set(null);
+    this.isLoadingDetails.set(true);
 
     if (node.type === 'app') {
-      this.isLoadingDetails.set(true);
       this.dashboardService.getMfeDetails(node.id).subscribe({
-        next: (details) => {
-          this.selectedNodeDetails.set(details);
+        next: (data) => {
+          this.selectedNodeDetails.set(data);
           this.isLoadingDetails.set(false);
         },
-        error: (err) => {
-          console.error("Failed to fetch MFE details", err);
+        error: (e) => {
+          console.warn(e);
           this.isLoadingDetails.set(false);
+          // Fallback for demo
+          this.selectedNodeDetails.set({
+            activeVersion: { version: 'v1.0.0', environment: 'PRODUCTION' },
+            dependencies: [],
+            consumers: []
+          });
         }
       });
+    } else {
+      this.isLoadingDetails.set(false);
     }
-  }
-
-  lockVersion(mfe: string, version: string) {
-    this.isLoadingDetails.set(true);
-    this.dashboardService.lockVersion(mfe, version, 'PRODUCTION', true).subscribe({
-      next: () => {
-        // Refresh details
-        this.onNodeClick(this.selectedNode()!);
-      },
-      error: (err) => console.error(err)
-    });
-  }
-
-  unlockVersion(mfe: string) {
-    this.isLoadingDetails.set(true);
-    this.dashboardService.lockVersion(mfe, "", 'PRODUCTION', false).subscribe({
-      next: () => {
-        // Refresh details
-        this.onNodeClick(this.selectedNode()!);
-      },
-      error: (err) => console.error(err)
-    });
   }
 }

@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/registry")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class RegistryController {
 
@@ -28,7 +27,7 @@ public class RegistryController {
         try {
             return ResponseEntity.ok(registryService.reportConsumption(report));
         } catch (RuntimeException e) {
-            return ResponseEntity.status(404).body(e.getMessage());
+            return ResponseEntity.status(400).body(e.getMessage());
         }
     }
 }

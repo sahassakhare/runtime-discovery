@@ -85,6 +85,8 @@ public class RegistryServiceImpl implements RegistryService {
             return "Reported";
         }
 
-        throw new RuntimeException("Consumer not found or no active deployment");
+        log.warn("Telemetry ignored: No active deployment found for consumer '{}' in env '{}'", consumer,
+                com.maverick.feature.domain.Environment.PRODUCTION);
+        return "Ignored - Consumer Unknown";
     }
 }

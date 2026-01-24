@@ -27,7 +27,6 @@ import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/dashboard")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class DashboardController {
 
@@ -60,7 +59,7 @@ public class DashboardController {
 
                 Iterable<com.maverick.feature.domain.Deployment> deployments = deploymentRepository.findAll();
                 for (com.maverick.feature.domain.Deployment d : deployments) {
-                        if (d.getActive()) {
+                        if (d.isActive()) {
                                 Optional<MfeHealth> h = healthRepository
                                                 .findByApplicationVersionId(d.getVersion().getId());
                                 if (h.isPresent()) {

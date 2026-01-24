@@ -120,7 +120,6 @@ export async function loadRemoteModule<T = any>(
       await loadRemoteWithSri(versionInfo.remoteEntry, versionInfo.integrity, remoteType);
     }
 
-    // Dynamic Telemetry Reporting
     if (globalConfig) {
       fetch(`${globalConfig.apiUrl}/registry/consumption`, {
         method: 'POST',

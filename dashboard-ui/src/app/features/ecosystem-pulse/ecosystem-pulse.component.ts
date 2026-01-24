@@ -27,13 +27,13 @@ import { trigger, transition, style, animate } from '@angular/animations';
   template: `
     <div class="page-layout">
       <div class="content-main">
-        <mat-card class="dashboard-header">
+        <!-- <mat-card class="dashboard-header">
           <mat-card-header>
             <mat-icon mat-card-avatar color="primary">hub</mat-icon>
             <mat-card-title>Ecosystem Pulse</mat-card-title>
             <mat-card-subtitle>Live visualization of registered and healthy microfrontends</mat-card-subtitle>
           </mat-card-header>
-        </mat-card>
+        </mat-card> -->
 
         <!-- Wallboard Metrics -->
         <div class="metrics-grid">
@@ -194,73 +194,107 @@ import { trigger, transition, style, animate } from '@angular/animations';
     </div>
   `,
   styles: [`
-    .page-layout { display: flex; height: 100%; position: relative; overflow: hidden; }
-    .content-main { flex: 1; overflow-y: auto; padding: 20px; }
-    .dashboard-header { margin-bottom: 20px; border-radius: 12px; }
+    .page-layout { display: flex; height: 100%; position: relative; overflow: hidden; background: #121212; }
+    .content-main { flex: 1; overflow-y: auto; padding: 0; display: flex; flex-direction: column; }
+    
+    .dashboard-header { 
+        background: #1e1e1e !important; 
+        border-radius: 0 !important; 
+        margin: 0 !important; 
+        padding: 16px 24px !important;
+        border-bottom: 1px solid #333;
+        display: none; /* Hide header for cleaner wallboard look if metrics are sufficient */
+    }
 
+    /* Metrics Bar - SBA Style (Top Bar) */
+    .metrics-grid { 
+        display: flex; 
+        gap: 0; 
+        background: #1e1e1e; 
+        border-bottom: 1px solid #333;
+        padding: 0;
+        justify-content: center;
+    }
+    .metric-card { 
+        padding: 16px 32px; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        background: transparent !important; 
+        color: #fff;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        border-right: 1px solid #333;
+        min-width: 140px;
+    }
+    .metric-card:last-child { border-right: none; }
+    
+    .metric-value { font-size: 28px; font-weight: 300; margin-bottom: 4px; color: #fff; }
+    .metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; font-weight: 500; }
+    
+    .metric-card.up .metric-value { color: #2ecc71; }
+    .metric-card.down .metric-value { color: #e74c3c; }
+
+    /* Panel Styles */
     .detail-panel {
       position: absolute;
       right: 0;
       top: 0;
-      width: 450px;
+      width: 500px;
       height: 100%;
-      background: #1e1e1e;
-      box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+      background: #252526;
+      box-shadow: -5px 0 25px rgba(0,0,0,0.7);
       z-index: 100;
       display: flex;
       flex-direction: column;
       color: #e0e0e0;
       padding: 0;
+      border-left: 1px solid #333;
     }
 
-    .panel-header { padding: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
-    .title-area h2 { margin: 0; font-size: 24px; color: #fff; }
-    .status-badge { font-size: 10px; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; margin-top: 5px; display: inline-block; }
-    .status-badge.healthy { background: #2e7d32; }
-    .status-badge.live { background: #1565c0; }
-    .status-badge.registered { background: #616161; }
+    .panel-header { padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; background: #1e1e1e; border-bottom: 1px solid #333; }
+    .title-area h2 { margin: 0; font-size: 24px; color: #fff; font-weight: 300; }
+    .status-badge { font-size: 10px; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; margin-top: 5px; display: inline-block; font-weight: 600; letter-spacing: 0.5px; }
+    .status-badge.healthy { background: #2ecc71; color: #000; }
+    .status-badge.live { background: #3498db; color: #fff; }
+    .status-badge.registered { background: #7f8c8d; color: #fff; }
+    .status-badge.unhealthy { background: #e74c3c; color: #fff; }
 
-    .panel-content { padding: 20px; overflow-y: auto; flex: 1; }
-    .panel-content h3 { font-size: 14px; text-transform: uppercase; color: #888; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+    .panel-content { padding: 24px; overflow-y: auto; flex: 1; }
+    .panel-content h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; color: #666; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; margin-top: 10px; letter-spacing: 1px; }
 
-    .meta-item { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
+    .meta-item { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 13px; border-bottom: 1px solid #2a2a2a; padding-bottom: 4px; }
     .meta-item .key { color: #aaa; }
-    .meta-item .value { color: #fff; font-family: monospace; }
+    .meta-item .value { color: #fff; font-family: 'JetBrains Mono', monospace; }
 
-    .module-item { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .module-item span { font-weight: 500; }
+    .module-item { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; background: #2d2d2d; padding: 8px; border-radius: 4px; }
+    .module-item span { font-weight: 500; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
     .module-item small { color: #666; margin-left: auto; }
-    .module-item mat-icon { font-size: 18px; width: 18px; height: 18px; color: #03a9f4; }
-    
-    .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
-    .metric-card { padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #2d2d2d; color: #fff; }
-    .metric-value { font-size: 32px; font-weight: 700; margin-bottom: 5px; }
-    .metric-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; }
-    .metric-card.up .metric-value { color: #4caf50; }
-    .metric-card.down .metric-value { color: #f44336; }
+    .module-item mat-icon { font-size: 18px; width: 18px; height: 18px; color: #3498db; }
     
     .tab-content { padding: 20px 0; }
     .chip-list { display: flex; gap: 8px; flex-wrap: wrap; }
-    .chip { background: #333; padding: 4px 8px; border-radius: 12px; font-size: 12px; border: 1px solid #444; }
+    .chip { background: #333; padding: 4px 10px; border-radius: 12px; font-size: 11px; border: 1px solid #444; color: #ccc; }
 
-    .log-viewport { background: #000; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 10px; color: #bbb; max-height: 400px; overflow-y: auto; border-radius: 4px; }
+    .log-viewport { background: #121212; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 12px; color: #bbb; max-height: 500px; overflow-y: auto; border-radius: 4px; border: 1px solid #333; }
     .log-line { border-bottom: 1px solid #222; padding: 2px 0; white-space: nowrap; }
 
     .thread-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding: 8px 0; }
-    .thread-id { color: #888; font-size: 10px; margin-right: 8px; }
-    .thread-name { font-size: 12px; color: #eee; }
-    .thread-state { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: #444; }
-    .thread-state.runnable { background: #2e7d32; }
-    .thread-state.blocked { background: #c62828; }
-    .thread-state.waiting { background: #ff8f00; color: #000; }
+    .thread-id { color: #555; font-size: 10px; margin-right: 8px; width: 30px; }
+    .thread-name { font-size: 12px; color: #ddd; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .thread-state { font-size: 9px; padding: 2px 6px; border-radius: 3px; background: #444; color: #fff; min-width: 60px; text-align: center; }
+    .thread-state.runnable { background: #2ecc71; color: #000; }
+    .thread-state.blocked { background: #e74c3c; }
+    .thread-state.waiting { background: #f1c40f; color: #000; }
 
     .trace-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    .trace-table th { text-align: left; color: #888; border-bottom: 1px solid #444; padding: 5px; }
-    .trace-table td { border-bottom: 1px solid #333; padding: 5px; color: #ddd; }
-    .method-badge { font-weight: 700; color: #bb86fc; }
+    .trace-table th { text-align: left; color: #666; border-bottom: 1px solid #333; padding: 8px; text-transform: uppercase; font-weight: 600; }
+    .trace-table td { border-bottom: 1px solid #333; padding: 8px; color: #ccc; }
+    .method-badge { font-weight: 600; color: #bb86fc; background: rgba(187, 134, 252, 0.1); padding: 2px 6px; border-radius: 3px; }
     .status-badge.error { color: #cf6679; }
     .status-badge.success { color: #03dac6; }
-    .uri { font-family: monospace; color: #aaa; }
+    .uri { font-family: 'JetBrains Mono', monospace; color: #888; }
   `]
 })
 export class EcosystemPulseComponent implements OnInit {

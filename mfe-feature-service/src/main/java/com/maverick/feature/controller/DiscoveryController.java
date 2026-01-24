@@ -27,7 +27,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class DiscoveryController {
 

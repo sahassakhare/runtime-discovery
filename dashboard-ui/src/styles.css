@@ -31,6 +31,14 @@
   --s-shadow-blue: 0 10px 15px -3px rgba(37, 99, 235, 0.1), 0 4px 6px -4px rgba(37, 99, 235, 0.1);
 }
 
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  /* Prevent body scroll */
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -104,6 +112,15 @@ body {
 /* Sidenav Overrides */
 .mat-drawer-container {
   background-color: white !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+.mat-drawer-content {
+  height: 100vh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .mat-drawer {
