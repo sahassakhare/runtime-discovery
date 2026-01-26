@@ -31,4 +31,8 @@ public interface DeploymentRepository extends JpaRepository<Deployment, Long> {
         List<Deployment> findByEnvironment(com.maverick.feature.domain.Environment environment);
 
         long countByCreatedAtAfter(java.time.LocalDateTime date);
+
+        @Query("SELECT d FROM Deployment d JOIN FETCH d.version v JOIN FETCH v.application a WHERE a.id = :appId AND d.environment = :env AND d.active = true")
+        Optional<Deployment> findActiveByApplicationId(@Param("appId") Long appId,
+                        @Param("env") com.maverick.feature.domain.Environment env);
 }

@@ -57,8 +57,13 @@ public class DataInitializer {
 
                         // 4. Seed Microfrontends and Versions
                         if (appRepo.count() == 0) {
+                                // Fetch the first tenant (e.g., acme) to assign to the default group
+                                Tenant defaultTenant = tenantRepo.findById("acme")
+                                                .orElseThrow(() -> new RuntimeException("Default tenant not found"));
+
                                 MfeApplicationGroup group = new MfeApplicationGroup();
                                 group.setName("Default Group");
+                                group.setTenant(defaultTenant); // Set mandatory tenant
                                 group = groupRepo.save(group);
 
                                 MfeApplication app = new MfeApplication();
@@ -135,6 +140,10 @@ public class DataInitializer {
 
                         // 5. Seed Policies
                         seedPolicies(policyRepo, syncService); // Updated call to include syncService
+
+                        // 6. Seed Custom Hierarchy (Tenant 12345)
+                        seedCustomHierarchy(tenantRepo, groupRepo, appRepo, versionRepo, metadataRepo, deploymentRepo);
+
                         System.out.println("Data Seeding Completed Successfully.");
                 };
         }
@@ -285,5 +294,61 @@ public class DataInitializer {
                 fGov.setGroup("governance");
                 ff4j.getFeatureStore().create(fGov);
                 System.out.println(">>> Seeded FF4j feature: governance.enforcement (Global Switch) <<<");
+        }
+
+        private void seedCustomHierarchy(TenantRepository tenantRepo, MfeApplicationGroupRepository groupRepo,
+                        MfeApplicationRepository appRepo, MfeApplicationVersionRepository versionRepo,
+                        MfeMetadataRepository metadataRepo, DeploymentRepository deploymentRepo) {
+
+                String tenantId = "12345";
+                if (tenantRepo.existsById(tenantId)) {
+                        System.out.println(">>> Tenant " + tenantId + " already exists. Skipping custom seed. <<<");
+                        return;
+                }
+
+                // 1. Create Tenant
+                Tenant tenant = new Tenant(tenantId, "MyPortal Tenant");
+                tenantRepo.save(tenant);
+                System.out.println(">>> Seeded Tenant: " + tenantId + " <<<");
+
+                // 2. Create Group
+                MfeApplicationGroup group = new MfeApplicationGroup();
+                group.setName("myportal");
+                group.setTenant(tenant);
+                group = groupRepo.save(group);
+                System.out.println(">>> Seeded Group: myportal (Tenant: " + tenantId + ") <<<");
+
+                // 3. Create Applications
+                createApp(appRepo, versionRepo, metadataRepo, deploymentRepo, group, "shell", 5000);
+                createApp(appRepo, versionRepo, metadataRepo, deploymentRepo, group, "admin", 4204); // Arbitrary port
+                createApp(appRepo, versionRepo, metadataRepo, deploymentRepo, group, "intake", 4205); // Arbitrary port
+                createApp(appRepo, versionRepo, metadataRepo, deploymentRepo, group, "profile", 4201); // Real port for
+                                                                                                       // Remote Profile
+        }
+
+        private void createApp(MfeApplicationRepository appRepo, MfeApplicationVersionRepository versionRepo,
+                        MfeMetadataRepository metadataRepo, DeploymentRepository deploymentRepo,
+                        MfeApplicationGroup group, String appName, int port) {
+
+                MfeApplication app = new MfeApplication();
+                app.setName(appName);
+                app.setGroup(group);
+                app = appRepo.save(app);
+
+                MfeApplicationVersion v1 = new MfeApplicationVersion();
+                v1.setVersion("1.0.0");
+                v1.setApplication(app);
+                v1.setEnvironment("PRODUCTION");
+                v1.setLatest(true);
+                v1 = versionRepo.save(v1);
+
+                MfeMetadata meta = new MfeMetadata();
+                meta.setApplicationVersion(v1);
+                meta.setName("remoteEntry");
+                meta.setValue("http://localhost:" + port + "/remoteEntry.js");
+                metadataRepo.save(meta);
+
+                deploymentRepo.save(new Deployment(v1, Environment.PRODUCTION, true));
+                System.out.println(">>> Seeded App: " + appName + " (Group: " + group.getName() + ") <<<");
         }
 }

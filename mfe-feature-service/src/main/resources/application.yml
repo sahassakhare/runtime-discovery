@@ -78,7 +78,7 @@ mfe:
       userId: anonymous
   governance:
     opa:
-      mode: embedded # Options: sidecar, embedded
+      mode: sidecar # Options: sidecar, embedded
       baseUrl: http://localhost:8181/v1/data
       binaryPath: /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/opa
 

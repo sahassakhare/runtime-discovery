@@ -27,6 +27,8 @@ export class DiscoveryClientPlugin {
                 name: metadata.remote,
                 version: metadata.version || '1.0.0',
                 remoteEntry: metadata.source.url + (metadata.filename || '/remoteEntry.js'),
+                tenantId: metadata.tenantId, // Send Tenant ID
+                groupId: metadata.groupId, // Send Group ID (optional)
                 exposedModules: exposedNames.map(name => ({
                     name,
                     filePath: exposed[name]

@@ -9,7 +9,7 @@ echo "🚀 Starting MFE Discovery Platform..."
 
 # 1. Start OPA
 echo "[1/5] Starting OPA Policy Engine (Port 8181)..."
-nohup ./opa run --server --set=decision_logs.console=true ./policies > "$LOG_DIR/opa.log" 2>&1 &
+docker-compose up -d opa
 
 # 2. Start Backend Service
 echo "[2/5] Starting MFE Feature Service (Port 8081)..."
@@ -27,14 +27,14 @@ cd "$BASE_DIR/examples/remote-profile"
 nohup npm run start > "$LOG_DIR/remote-profile.log" 2>&1 &
 
 # 5. Start Host Shell
-echo "[5/5] Starting Host Shell (Port 4200)..."
+echo "[5/5] Starting Host Shell (Port 5000)..."
 cd "$BASE_DIR/examples/shell"
 nohup npm run start > "$LOG_DIR/shell.log" 2>&1 &
 
 echo ""
 echo "✨ Platform is booting up!"
 echo "--------------------------------------------------"
-echo "Shell Dashboard: http://localhost:4200"
+echo "Shell Dashboard: http://localhost:5000"
 echo "Governance UI:   http://localhost:4203"
 echo "Remote MFE:      http://localhost:4201"
 echo "Backend API:     http://localhost:8081"

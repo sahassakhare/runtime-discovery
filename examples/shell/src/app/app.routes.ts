@@ -17,7 +17,7 @@ export const routes: Routes = [
     {
         path: 'profile',
         loadComponent: () =>
-            loadRemoteModule('profile', './Profile', { type: 'module' })
+            loadRemoteModule('12345.myportal.profile', './Profile', { type: 'module' })
                 .then((m: any) => m.ProfileComponent)
                 .catch(err => {
                     console.error('Failed to load profile remote:', err);

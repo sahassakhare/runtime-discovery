@@ -10,6 +10,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class Tenant {
 
+    @OneToMany(mappedBy = "tenant", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<MfeApplicationGroup> groups = new java.util.ArrayList<>();
+
     @Id
     @Column(nullable = false, unique = true)
     private String id; // e.g., "acme-corp"

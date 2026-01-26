@@ -15,6 +15,7 @@ import com.maverick.feature.domain.MfeHealth;
 import com.maverick.feature.domain.MfeDependency;
 import com.maverick.feature.domain.MfeExposedModule;
 import com.maverick.feature.domain.MfeMetadata;
+import com.maverick.feature.domain.Tenant;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class DashboardController {
         private final MfeHealthRepository healthRepository;
         private final MfeDependencyRepository dependencyRepository;
         private final MfeExposedModuleRepository exposedModuleRepository;
+        private final com.maverick.feature.repository.TenantRepository tenantRepository; // Injected
         private final org.ff4j.FF4j ff4j;
 
         @GetMapping("/stats")
@@ -80,7 +82,7 @@ public class DashboardController {
                                 "totalMfes", totalMfes,
                                 "activeVersions", activeVersions,
                                 "deploymentsToday", deploymentsToday,
-                                "avgLighthouseScore", avgLighthouse,
+                                "avgLighthouseScore", (long) avgLighthouse,
                                 "upCount", upCount,
                                 "downCount", downCount,
                                 "unknownCount", unknownCount));
@@ -359,16 +361,33 @@ public class DashboardController {
                                 .orElseGet(() -> {
                                         MfeApplication newApp = new MfeApplication();
                                         newApp.setName(request.getName());
-                                        // Find or create default group
-                                        com.maverick.feature.domain.MfeApplicationGroup defaultGroup = groupRepository
+
+                                        // Resolve Tenant (Auto-create if missing)
+                                        String tid = request.getTenantId() != null ? request.getTenantId() : "acme";
+                                        Tenant tenant = tenantRepository.findById(tid)
+                                                        .orElseGet(() -> {
+                                                                Tenant newTenant = new Tenant(tid, tid);
+                                                                return tenantRepository.save(newTenant);
+                                                        });
+
+                                        // Resolve Group (Default to 'Default Group' if not provided)
+                                        String groupName = request.getGroupId() != null ? request.getGroupId()
+                                                        : "Default Group";
+
+                                        // Find or create group for this Tenant
+                                        com.maverick.feature.domain.MfeApplicationGroup group = groupRepository
                                                         .findAll().stream()
+                                                        .filter(g -> g.getTenant() != null
+                                                                        && g.getTenant().getId().equals(tid)
+                                                                        && g.getName().equalsIgnoreCase(groupName))
                                                         .findFirst()
                                                         .orElseGet(() -> {
                                                                 com.maverick.feature.domain.MfeApplicationGroup g = new com.maverick.feature.domain.MfeApplicationGroup();
-                                                                g.setName("Default");
+                                                                g.setName(groupName);
+                                                                g.setTenant(tenant);
                                                                 return groupRepository.save(g);
                                                         });
-                                        newApp.setGroup(defaultGroup);
+                                        newApp.setGroup(group);
                                         return mfeRepository.save(newApp);
                                 });
 

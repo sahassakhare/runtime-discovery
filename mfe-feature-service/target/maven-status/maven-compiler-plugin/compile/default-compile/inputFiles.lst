@@ -11,6 +11,7 @@
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/controller/OrchestrationController.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/controller/PolicyController.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/controller/RegistryController.java
+/Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/controller/TenantController.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/domain/Deployment.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/domain/Environment.java
 /Users/sahassakhare/Downloads/mfe-discovery-client/mfe-feature-service/src/main/java/com/maverick/feature/domain/FeatureContextKeys.java

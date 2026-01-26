@@ -177,11 +177,35 @@ public class DiscoveryController {
 
         log.info("Resolving remote: {} for env: {} tenant: {}", remoteName, env, tenantId);
 
-        // 1. Enterprise Resolution Strategy
-        // Priority 1: Specific Tenant Deployment
+        // 0. FQN Resolution (Tenant.Group.App Pattern)
         Optional<com.maverick.feature.domain.Deployment> deploymentOpt = Optional.empty();
 
-        if (tenantId != null) {
+        if (remoteName.contains(".")) {
+            String[] parts = remoteName.split("\\.");
+            if (parts.length == 3) {
+                String fqnTenant = parts[0];
+                String fqnGroup = parts[1];
+                String fqnApp = parts[2];
+                log.debug("Attempting FQN Resolution: Tenant={}, Group={}, App={}", fqnTenant, fqnGroup, fqnApp);
+
+                Optional<MfeApplication> fqnAppOpt = mfeRepository.findByFQN(fqnTenant, fqnGroup, fqnApp);
+                if (fqnAppOpt.isPresent()) {
+                    // Find active deployment for this specific application ID
+                    deploymentOpt = deploymentRepository.findActiveByApplicationId(fqnAppOpt.get().getId(), env);
+                    if (deploymentOpt.isPresent()) {
+                        log.info("FQN Resolved: {} -> App ID: {}", remoteName, fqnAppOpt.get().getId());
+                    }
+                }
+            } else {
+                log.warn(
+                        "Ambiguous remote name pattern '{}' ({} parts). Skipping FQN resolution and falling back to standard lookup.",
+                        remoteName, parts.length);
+            }
+        }
+
+        // 1. Enterprise Resolution Strategy
+        // Priority 1: Specific Tenant Deployment (if not already resolved by FQN)
+        if (deploymentOpt.isEmpty() && tenantId != null) {
             deploymentOpt = deploymentRepository.findActiveByTenant(remoteName, env, tenantId);
         }
 

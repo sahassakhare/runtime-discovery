@@ -9,6 +9,9 @@ public class RegisterMfeRequest {
     // Additional metadata from plugin?
     private String type; // "var", "module", etc.
 
+    private String tenantId; // New field for multi-tenancy support
+    private String groupId; // Optional Group ID
+
     private java.util.List<ConsumedRemoteMetadata> consumedRemotes;
 
     public String getName() {
@@ -49,6 +52,22 @@ public class RegisterMfeRequest {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
+    }
+
+    public String getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(String groupId) {
+        this.groupId = groupId;
     }
 
     public java.util.List<ConsumedRemoteMetadata> getConsumedRemotes() {

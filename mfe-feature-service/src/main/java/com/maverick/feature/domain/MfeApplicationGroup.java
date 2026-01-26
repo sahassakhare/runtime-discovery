@@ -23,6 +23,10 @@ public class MfeApplicationGroup {
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MfeApplication> applications = new ArrayList<>();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "TENANT_ID", nullable = false)
+    private Tenant tenant;
+
     public MfeApplicationGroup() {
     }
 
@@ -48,6 +52,14 @@ public class MfeApplicationGroup {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Tenant getTenant() {
+        return tenant;
+    }
+
+    public void setTenant(Tenant tenant) {
+        this.tenant = tenant;
     }
 
     public List<MfeApplication> getApplications() {
