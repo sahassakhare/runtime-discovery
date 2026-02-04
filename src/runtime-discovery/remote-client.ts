@@ -16,8 +16,92 @@ export interface MonitoringService {
 export type RemoteOptions = Partial<LoadRemoteModuleOptions> & {
   retries?: number;
   context?: Record<string, any>;
-  type: 'module' | 'script' | 'manifest';
+  type?: 'module' | 'script' | 'manifest';
+  circuitBreaker?: Partial<CircuitBreakerConfig>;
 };
+
+/**
+ * Circuit Breaker State
+ */
+enum CircuitState {
+  CLOSED,
+  OPEN,
+  HALF_OPEN
+}
+
+/**
+ * Circuit Breaker Configuration (Resilience4j style)
+ */
+export interface CircuitBreakerConfig {
+  /** Explicitly enable or disable the circuit breaker */
+  enabled: boolean;
+  /** Number of failures before opening the circuit */
+  failureThreshold: number;
+  /** Time in milliseconds to wait before switching to half-open */
+  waitDurationInOpenState: number;
+}
+
+const DEFAULT_CB_CONFIG: CircuitBreakerConfig = {
+  enabled: true,
+  failureThreshold: 3,
+  waitDurationInOpenState: 10000
+};
+
+class CircuitBreaker {
+  private failures = 0;
+  private state = CircuitState.CLOSED;
+  private nextAttempt = 0;
+
+  constructor(private config: CircuitBreakerConfig = DEFAULT_CB_CONFIG) { }
+
+  public updateConfig(newConfig: Partial<CircuitBreakerConfig>) {
+    this.config = { ...this.config, ...newConfig };
+  }
+
+  public recordFailure(): void {
+    if (!this.config.enabled) return;
+
+    this.failures++;
+    if (this.failures >= this.config.failureThreshold) {
+      this.state = CircuitState.OPEN;
+      this.nextAttempt = Date.now() + this.config.waitDurationInOpenState;
+      console.warn(`[Maverick] Circuit Breaker OPEN for remote.`);
+    }
+  }
+
+  public recordSuccess(): void {
+    if (!this.config.enabled) return;
+    this.failures = 0;
+    this.state = CircuitState.CLOSED;
+  }
+
+  public canRequest(): boolean {
+    if (!this.config.enabled) return true;
+
+    if (this.state === CircuitState.CLOSED) return true;
+    if (this.state === CircuitState.OPEN) {
+      if (Date.now() > this.nextAttempt) {
+        this.state = CircuitState.HALF_OPEN;
+        return true;
+      }
+      return false;
+    }
+    return true; // HALF_OPEN
+  }
+}
+
+const breakers = new Map<string, CircuitBreaker>();
+
+function getBreaker(id: string, config?: Partial<CircuitBreakerConfig>): CircuitBreaker {
+  if (!breakers.has(id)) {
+    breakers.set(id, new CircuitBreaker(config ? { ...DEFAULT_CB_CONFIG, ...config } : DEFAULT_CB_CONFIG));
+  }
+  const breaker = breakers.get(id)!;
+  if (config) {
+    breaker.updateConfig(config);
+  }
+  return breaker;
+}
 
 // Global Strategy Holder
 let globalDiscovery: RuntimeDiscovery | null = null;
@@ -63,20 +147,88 @@ export function setDiscoveryStrategy(
  * @returns A Promise resolving to the loaded module exports
  * @throws Error if the remote cannot be resolved or loaded after fallbacks
  */
+   * @throws Error if the remote cannot be resolved or loaded after fallbacks
+  */
 export async function loadRemoteModule<T = any>(
   remoteName: string,
   exposedModule: string,
   options: RemoteOptions
 ): Promise<T> {
+  return loadRemoteModuleInternal<T>(remoteName, exposedModule, options, false);
+}
+
+/**
+ * Preloads a remote module to warm the cache.
+ * Does not execute side effects or mount the component.
+ */
+export async function preloadRemoteModule(
+  remoteName: string,
+  exposedModule: string,
+  options: RemoteOptions
+): Promise<void> {
+  try {
+    console.debug(`[Maverick] Preloading ${remoteName}...`);
+    await loadRemoteModuleInternal(remoteName, exposedModule, options, true);
+  } catch (e) {
+    console.warn(`[Maverick] Prefetch failed for ${remoteName}`, e);
+  }
+}
+
+/**
+ * Internal implementation of the remote loading logic.
+ * Handles the full pipeline:
+ * 1. Circuit Breaker check
+ * 2. URL Override check (Hybrid Dev)
+ * 3. Discovery Service resolution
+ * 4. Policy & Governance enforcement
+ * 5. Telemetry recording
+ * 6. Variant loading (with SRI support)
+ * 7. Preloading logic (if isPreload is true)
+ * 
+ * @internal
+ */
+async function loadRemoteModuleInternal<T = any>(
+  remoteName: string,
+  exposedModule: string,
+  options: RemoteOptions,
+  isPreload: boolean
+): Promise<T> {
   if (!globalDiscovery) {
     throw new Error('RuntimeDiscovery strategy not set. Call setDiscoveryStrategy() first.');
   }
 
-  const { retries = 1, context, type } = options;
+  const { retries = 1, context, type, circuitBreaker } = options;
 
   console.debug(`[Maverick] Starting resolution for ${remoteName}...`);
-  const resolved: ResolveRemoteResponse =
-    await globalDiscovery.resolveRemote(remoteName, context);
+
+  const breaker = getBreaker(remoteName, circuitBreaker);
+  if (!breaker.canRequest()) {
+    throw new Error(`[CircuitBreaker] Circuit is OPEN for ${remoteName}. Fail fast.`);
+  }
+
+  // Hybrid Dev: Check for Overrides in URL
+  // Pattern: ?override_profile=http://localhost:4201/remoteEntry.js
+  let finalContext = { ...context };
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const overrideKey = `override_${remoteName}`;
+    if (params.has(overrideKey)) {
+      const overrideUrl = params.get(overrideKey);
+      console.warn(`[Maverick] Found Local Override for ${remoteName}: ${overrideUrl}`);
+      // Send as "remoteName=url" to the single "mfe_override" key to keep it clean
+      // If existing overrides exist, strictly we should merge, but for now simple 1-to-1 is fine.
+      // Format expected by backend: "remoteName=url"
+      finalContext['mfe_override'] = `${remoteName}=${overrideUrl}`;
+    }
+  }
+
+  let resolved: ResolveRemoteResponse;
+  try {
+    resolved = await globalDiscovery.resolveRemote(remoteName, finalContext);
+  } catch (err) {
+    breaker.recordFailure();
+    throw err;
+  }
 
   // Monitor if service available
   if (globalMonitoring) {
@@ -146,15 +298,56 @@ export async function loadRemoteModule<T = any>(
 
     console.debug('[Maverick] Calling loadRemoteModuleFn with:', JSON.stringify(loadOptions));
 
+    if (isPreload && (remoteType === 'script' || remoteType === 'module')) {
+      // Just fetch the file to warm browser cache
+      if (typeof window !== 'undefined' && (versionInfo.remoteEntry.startsWith('http') || versionInfo.remoteEntry.startsWith('/'))) {
+        try {
+          // Low-priority fetch for preloading
+          const link = document.createElement('link');
+          link.rel = 'prefetch'; // or 'modulepreload'
+          link.href = versionInfo.remoteEntry;
+          link.as = remoteType === 'script' ? 'script' : 'script';
+          document.head.appendChild(link);
+          return {} as T;
+        } catch (e) {
+          // Fallback to fetch if link not supported or just to be safe
+          fetch(versionInfo.remoteEntry, { mode: 'cors', priority: 'low' }).catch(() => { });
+          return {} as T;
+        }
+      }
+      return {} as T;
+    }
+
     return await loadRemoteModuleFn(loadOptions);
   };
 
   try {
-    return await loadVariant(resolved.selected);
+    const result = await loadVariant(resolved.selected);
+    breaker.recordSuccess();
+    return result;
   } catch (err) {
-    if (!resolved.fallback) throw err;
-    console.warn(`[Maverick] Primary load failed. Fallback...`, err);
-    return await loadVariant(resolved.fallback);
+    console.error(`[Maverick] Remote load failed for ${remoteName}`, err);
+    // If we have a fallback, try it before tripping the breaker? 
+    // Usually fallback is better than breaking, but if fallback also fails...
+
+    if (resolved.fallback) {
+      try {
+        console.warn(`[Maverick] Attempting fallback for ${remoteName}...`);
+        const fallbackResult = await loadVariant(resolved.fallback);
+        // If fallback succeeds, do we strictly record success? 
+        // Maybe not, the primary is technically down. But the USER functionality works.
+        // Let's count it as partial success (don't trip breaker harder, but don't reset failures?).
+        // For simplicity: success.
+        breaker.recordSuccess();
+        return fallbackResult;
+      } catch (fallbackErr) {
+        breaker.recordFailure();
+        throw fallbackErr;
+      }
+    }
+
+    breaker.recordFailure();
+    throw err;
   }
 }
 
@@ -179,5 +372,9 @@ export class RemoteClient {
       setDiscoveryStrategy(this.discovery, { appName: 'legacy', environment: 'production', apiUrl: '' }, this.monitoring);
     }
     return loadRemoteModule(remoteName, exposedModule, options);
+  }
+
+  async preload(remoteName: string, exposedModule: string, options: RemoteOptions) {
+    return preloadRemoteModule(remoteName, exposedModule, options);
   }
 }

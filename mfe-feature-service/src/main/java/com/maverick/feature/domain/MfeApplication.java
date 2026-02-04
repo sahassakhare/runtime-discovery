@@ -29,6 +29,11 @@ public class MfeApplication {
     @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MfeApplicationVersion> versions = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "MFE_APP_BEHAVIORS", joinColumns = @JoinColumn(name = "APP_ID"))
+    @Column(name = "BEHAVIOR")
+    private List<String> behaviors = new ArrayList<>();
+
     public MfeApplication() {
     }
 
@@ -78,5 +83,13 @@ public class MfeApplication {
 
     public void setVersions(List<MfeApplicationVersion> versions) {
         this.versions = versions;
+    }
+
+    public List<String> getBehaviors() {
+        return behaviors;
+    }
+
+    public void setBehaviors(List<String> behaviors) {
+        this.behaviors = behaviors;
     }
 }

@@ -411,6 +411,25 @@ public class DashboardController {
                                         newV.getMetadata().add(meta);
                                         newV = versionRepository.save(newV);
 
+                                        // Automated SRI Calculation (Enterprise Security)
+                                        try {
+                                                String integrity = generateSriHash(request.getRemoteEntry());
+                                                if (integrity != null) {
+                                                        log.info("Calculated SRI for {}: {}", request.getName(),
+                                                                        integrity);
+                                                        com.maverick.feature.domain.MfeMetadata sriMeta = new com.maverick.feature.domain.MfeMetadata();
+                                                        sriMeta.setApplicationVersion(newV);
+                                                        sriMeta.setName("integrity");
+                                                        sriMeta.setValue(integrity);
+                                                        newV.getMetadata().add(sriMeta);
+                                                        newV = versionRepository.save(newV);
+                                                }
+                                        } catch (Exception e) {
+                                                log.warn("Failed to generate SRI for {}: {}", request.getName(),
+                                                                e.getMessage());
+                                                // Non-blocking failure, proceeded without SRI
+                                        }
+
                                         return newV;
                                 });
 
@@ -560,6 +579,31 @@ public class DashboardController {
                 } catch (Exception e) {
                         log.error("Failed to fetch {} from {}: {}", asset, assetUrl, e.getMessage());
                         return ResponseEntity.status(502).body("Failed to fetch " + asset + " from MFE");
+                }
+        }
+
+        /**
+         * Fetches the remote entry and calculates SHA-384 hash for SRI.
+         */
+        private String generateSriHash(String remoteEntryUrl) {
+                if (remoteEntryUrl == null || !remoteEntryUrl.startsWith("http"))
+                        return null;
+
+                try {
+                        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                        byte[] scriptBytes = restTemplate.getForObject(remoteEntryUrl, byte[].class);
+
+                        if (scriptBytes == null || scriptBytes.length == 0)
+                                return null;
+
+                        java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-384");
+                        byte[] hash = digest.digest(scriptBytes);
+                        String base64Hash = java.util.Base64.getEncoder().encodeToString(hash);
+
+                        return "sha384-" + base64Hash;
+                } catch (Exception e) {
+                        log.warn("Error calculating SRI for {}: {}", remoteEntryUrl, e.getMessage());
+                        return null;
                 }
         }
 

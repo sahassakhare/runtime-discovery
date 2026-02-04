@@ -27,7 +27,15 @@ export function registerApplication(config: DiscoveryConfig) {
   }).catch(err => console.warn('[Maverick] Failed to register instance:', err));
 }
 
-// Functional implementation of RuntimeDiscovery
+/**
+ * Functional factory that creates a RuntimeDiscovery Client.
+ * 
+ * This client communicates with the remote Discovery Service to resolve MFE locations
+ * dynamically based on tenant, environment, and user context.
+ * 
+ * @param config - The configuration object containing the Discovery Service URL, App Name, and Environment.
+ * @returns An object with a `resolveRemote` function.
+ */
 export function runtimeDiscovery(config: DiscoveryConfig) {
   return {
     resolveRemote: async (remoteName: string, context?: Record<string, any>) => {

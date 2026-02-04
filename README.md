@@ -116,6 +116,74 @@ To support advanced orchestration, the client enforces a strict lifecycle protoc
 | **`unmount(el)`** | `Promise<void>` | **Cleanup**. The remote must destroy its application instance and clean up DOM listeners. Critical for SPA performance. |
 | **`dispose()`** | `Promise<void>` | **Global GC**. Optional hook to clear global caches or shared workers when the remote is evicted from the registry. |
 
+### Advanced Enterprise Features (v2.1+)
+
+#### 1. Resilience & Circuit Breakers (Resilience4j Style)
+Prevents cascading failures when a remote is unresponsive. The client tracks failure rates per remote and automatically "opens the circuit" to fail fast.
+
+**Configuration:**
+```typescript
+loadRemoteModule('profile', './Profile', {
+  type: 'module',
+  circuitBreaker: {
+    enabled: true,
+    failureThreshold: 3,             // 3 failures -> Signal OPEN
+    waitDurationInOpenState: 10000   // Probe again after 10 seconds
+  }
+});
+```
+*   **Fallback**: If the circuit is open or loading fails, the system renders a `FallbackComponent` (visual alert) to keep the Shell stable.
+
+#### 2. Hybrid "Local-in-Prod" Development
+Allows developers to override a specific MFE in a production-like environment (Staging/Dev) with their local `localhost` version for real-world integration testing.
+
+**Usage:**
+Append the `override_[remoteName]` query parameter to your Shell URL:
+```bash
+http://app.acme.com/dashboard?override_profile=http://localhost:4201/remoteEntry.js
+```
+*   **Security**: This feature is strictly guarded by the `enable.developer.overrides` feature flag in the backend.
+
+#### 3. Smart Prefetching
+Predictively loads remote resources to ensure instant navigation. The `[mfePrefetch]` directive uses `<link rel="prefetch">` to download the script without executing it, warming the browser cache.
+
+**Usage:**
+```html
+<!-- Trigger on Hover (Default) - Great for Navigation Links -->
+<a routerLink="/profile" [mfePrefetch]="'profile'">Profile</a>
+
+<!-- Trigger on Idle - Good for heavy, likely-to-be-used features -->
+<button [mfePrefetch]="'reports'" [prefetchTrigger]="'idle'">Load Reports</button>
+```
+
+#### 4. Automated Integrity (SRI)
+Protects against Supply Chain Attacks by enforcing Subresource Integrity.
+
+**Workflow:**
+1.  **Registration**: When you POST to `/register`, the backend fetches the `remoteEntry.js`.
+2.  **Calculation**: It calculates the `SHA-384` hash of the file content.
+3.  **Storage**: The hash is saved as `MfeMetadata` (key=`integrity`).
+4.  **Enforcement**: The client automatically adds `integrity="sha384-..."` to the injected `<script>` tag.
+
+#### 5. Intent-Based Navigation
+Decouples Shell routes from specific Applications. Instead of routing to "Profile App", you route to the "Edit Profile Capability".
+
+**Backend Registration:**
+```json
+// MFE Application Entity
+{
+  "name": "profile",
+  "behaviors": ["EDIT_PROFILE", "VIEW_PREFERENCES"]
+}
+```
+
+**Shell Usage:**
+```typescript
+// Resolve by Capability, not Name
+const result = await fetch('/api/resolve/intent?action=EDIT_PROFILE');
+// Returns connection info for 'profile' MFE
+```
+
 ---
 
 ## Installation

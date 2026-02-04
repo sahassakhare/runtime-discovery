@@ -177,6 +177,51 @@ public class DiscoveryController {
 
         log.info("Resolving remote: {} for env: {} tenant: {}", remoteName, env, tenantId);
 
+        // Priority -1: Developer Override (Hybrid Local Dev)
+        // Feature Flag: enable.developer.overrides must be ON
+        if (ff4j.check("enable.developer.overrides") && request.getContext() != null
+                && request.getContext().containsKey("mfe_override")) {
+            String overrideVal = String.valueOf(request.getContext().get("mfe_override"));
+            // Expected format: "remoteName:url" or just "url" if simple
+            // But we need to match the specific remote being requested.
+            // Support multiple overrides via semicolon?
+            // "profile:http://xyz;other:http://abc"
+
+            if (overrideVal != null && !overrideVal.isEmpty()) {
+                String[] overrides = overrideVal.split(";");
+                for (String ov : overrides) {
+                    String[] parts = ov.split("=", 2); // key=value
+                    if (parts.length == 2 && parts[0].trim().equals(remoteName)) {
+                        String targetUrl = parts[1].trim();
+
+                        // Security: Block in Production unless explicitly flagged
+                        if (env == com.maverick.feature.domain.Environment.PRODUCTION
+                                && !ff4j.check("allow.production.overrides")) {
+                            log.warn("BLOCKED Override attempt in PRODUCTION for {}", remoteName);
+                            continue;
+                        }
+
+                        log.warn("DEVELOPER OVERRIDE applied for {}: {}", remoteName, targetUrl);
+
+                        return ResponseEntity.ok(ResolutionResponse.builder()
+                                .remoteName(remoteName)
+                                .environment("LOCAL_OVERRIDE")
+                                .selected(ResolutionResponse.RemoteVersion.builder()
+                                        .version("0.0.0-DEV")
+                                        .remoteEntry(targetUrl)
+                                        .build())
+                                .resolutionContext(ResolutionResponse.ResolutionContext.builder()
+                                        .variant(ResolutionResponse.Variant.builder()
+                                                .name("local-dev")
+                                                .type(com.maverick.feature.domain.VariantType.EXPERIMENT)
+                                                .build())
+                                        .build())
+                                .build());
+                    }
+                }
+            }
+        }
+
         // 0. FQN Resolution (Tenant.Group.App Pattern)
         Optional<com.maverick.feature.domain.Deployment> deploymentOpt = Optional.empty();
 
@@ -459,7 +504,42 @@ public class DiscoveryController {
         }
 
         responseBuilder.resolutionContext(contextBuilder.build());
+        responseBuilder.resolutionContext(contextBuilder.build());
         return ResponseEntity.ok(responseBuilder.build());
+    }
+
+    @GetMapping("/resolve/intent")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ResolutionResponse> resolveIntent(
+            @RequestParam String action,
+            @RequestParam(required = false) String environment,
+            @RequestParam(required = false) String tenantId) {
+
+        log.info("Resolving Intent: {} for env: {}", action, environment);
+
+        // 1. Find apps with matching behavior
+        // Logic: Scan all apps (or use optimized JPQL query)
+        // For demo simple stream filter is fine
+        Optional<MfeApplication> matchingApp = mfeRepository.findAll().stream()
+                .filter(app -> app.getBehaviors().contains(action))
+                .findFirst(); // Could implement priority/scoring here
+
+        if (matchingApp.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // 2. Delegate to standard resolution with the found app name
+        ResolutionRequest req = new ResolutionRequest();
+        req.setRemoteName(matchingApp.get().getName());
+        req.setEnvironment(environment);
+        req.setTenantId(tenantId);
+
+        // We can attach a context flag "intent_resolution" = action
+        if (req.getContext() == null)
+            req.setContext(new HashMap<>());
+        req.getContext().put("intent_original_action", action);
+
+        return resolve(req);
     }
 
     private ResolutionResponse.RemoteVersion toRemoteVersion(MfeApplicationVersion version) {

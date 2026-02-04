@@ -72,8 +72,12 @@ export class LiveDiscoveryService implements OnDestroy {
     }
 
     /**
-     * Starts monitoring a specific remote for updates.
-     * If an update is detected, it updates the signal.
+     * Starts monitoring a specific remote for real-time updates.
+     * 
+     * When a change is detected (either via SSE Push or Polling), the internal
+     * signal for this remote is updated, triggering any reactive UI bound to it.
+     * 
+     * @param remoteName - The name of the remote to monitor (e.g. 'profile')
      */
     monitor(remoteName: string) {
         if (this.monitoredRemotes.has(remoteName)) {
@@ -89,6 +93,8 @@ export class LiveDiscoveryService implements OnDestroy {
 
     /**
      * Triggers a manual refresh of all monitored configurations.
+     * Useful when the user context changes (e.g. login/logout) to re-evaluate
+     * feature flags and version resolution for all active remotes.
      */
     refreshAll() {
         console.log('[LiveDiscovery] Refreshing all monitored remotes with current context...');
@@ -100,7 +106,11 @@ export class LiveDiscoveryService implements OnDestroy {
     }
 
     /**
-     * Returns a Signal for the specific remote's configuration.
+     * Returns a reactive Angular Signal holding the current configuration for the remote.
+     * The signal updates automatically when the remote's version or feature flags change.
+     * 
+     * @param remoteName - The remote to get the config for
+     * @returns A generic Signal<ResolveRemoteResponse | undefined>
      */
     getRemoteConfig(remoteName: string) {
         return computed(() => this.remoteConfigs().get(remoteName));
